@@ -480,14 +480,25 @@ function renderTopicManager() {
       <button class="btn btn-sm btn-primary" onclick="saveTopic(${i})">저장</button>
       <button class="btn btn-sm btn-danger" onclick="deleteTopic('${t.id}', ${i})">삭제</button>
     </div>
-  `).join('');
+  `).join('') + `
+    <div class="topic-row" id="topicRow_new" style="border:2px dashed var(--primary); background:rgba(26,86,219,.08);">
+      <span style="color:var(--primary-light); font-size:12px; width:30px;">NEW</span>
+      <input class="w-cat" value="" placeholder="카테고리" id="cat_new">
+      <input class="w-title" value="" placeholder="주제 제목" id="title_new">
+      <input class="w-hook" value="" placeholder="후킹 포인트" id="hook_new">
+      <button class="btn btn-sm btn-success" onclick="saveNewTopic()">추가</button>
+    </div>
+  `;
 }
 
 async function saveTopic(idx) {
   const topic = TOPICS[idx];
-  const category = document.getElementById(`cat_${idx}`).value;
-  const title = document.getElementById(`title_${idx}`).value;
-  const hook = document.getElementById(`hook_${idx}`).value;
+  const category = document.getElementById(`cat_${idx}`).value.trim();
+  const title = document.getElementById(`title_${idx}`).value.trim();
+  const hook = document.getElementById(`hook_${idx}`).value.trim();
+  if (!title) { alert('주제 제목을 입력하세요.'); return; }
+  const btn = document.querySelector(`#topicRow_${idx} .btn-primary`);
+  btn.textContent = '저장 중...'; btn.disabled = true;
   try {
     const res = await fetch(`${API_BASE}/topicUpdate`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -496,35 +507,45 @@ async function saveTopic(idx) {
     const data = await res.json();
     if (data.success) {
       TOPICS[idx] = { ...topic, category, title, hook };
-      alert(`✅ ${topic.id} 저장 완료`);
+      btn.textContent = '✅ 완료'; setTimeout(() => { btn.textContent = '저장'; btn.disabled = false; }, 1500);
       renderTopicGrid();
-    }
-  } catch (e) { alert('저장 실패: ' + e.message); }
+    } else { alert('저장 실패: ' + (data.error || '')); btn.textContent = '저장'; btn.disabled = false; }
+  } catch (e) { alert('저장 실패: ' + e.message); btn.textContent = '저장'; btn.disabled = false; }
 }
 
-async function addTopic() {
-  const category = prompt('카테고리 (예: AI기능, 관리, 마케팅, 브랜딩)');
-  if (!category) return;
-  const title = prompt('주제 제목');
-  if (!title) return;
-  const hook = prompt('후킹 포인트 (한 줄 설명)');
+async function saveNewTopic() {
+  const category = document.getElementById('cat_new').value.trim();
+  const title = document.getElementById('title_new').value.trim();
+  const hook = document.getElementById('hook_new').value.trim();
+  if (!title) { alert('주제 제목을 입력하세요.'); return; }
+  if (!category) { alert('카테고리를 입력하세요.'); return; }
+  const btn = document.querySelector('#topicRow_new .btn-success');
+  btn.textContent = '추가 중...'; btn.disabled = true;
   try {
     const res = await fetch(`${API_BASE}/topicUpdate`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'add', topic: { category, title, hook: hook || '' } })
+      body: JSON.stringify({ action: 'add', topic: { category, title, hook } })
     });
     const data = await res.json();
     if (data.success) {
       await loadTopics();
       renderTopicManager();
       renderTopicGrid();
-      alert(`✅ ${data.id} 추가 완료`);
-    }
-  } catch (e) { alert('추가 실패: ' + e.message); }
+    } else { alert('추가 실패: ' + (data.error || '')); btn.textContent = '추가'; btn.disabled = false; }
+  } catch (e) { alert('추가 실패: ' + e.message); btn.textContent = '추가'; btn.disabled = false; }
+}
+
+function addTopic() {
+  // 주제 관리 패널 열고 NEW 행으로 스크롤
+  document.getElementById('topicPanel').style.display = 'block';
+  renderTopicManager();
+  setTimeout(() => { document.getElementById('cat_new')?.focus(); }, 200);
 }
 
 async function deleteTopic(topicId, idx) {
   if (!confirm(`"${TOPICS[idx].title}" 주제를 삭제하시겠습니까?`)) return;
+  const btn = document.querySelector(`#topicRow_${idx} .btn-danger`);
+  btn.textContent = '삭제 중...'; btn.disabled = true;
   try {
     const res = await fetch(`${API_BASE}/topicUpdate`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -535,9 +556,9 @@ async function deleteTopic(topicId, idx) {
       await loadTopics();
       renderTopicManager();
       renderTopicGrid();
-      alert('✅ 삭제 완료');
-    }
-  } catch (e) { alert('삭제 실패: ' + e.message); }
+    } else { alert('삭제 실패'); btn.textContent = '삭제'; btn.disabled = false; }
+  } catch (e) { alert('삭제 실패: ' + e.message); btn.textContent = '삭제'; btn.disabled = false; }
+}
 }
 
 // ════════════════════════════════════════
