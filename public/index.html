@@ -280,7 +280,10 @@ function renderContentTable(contents) {
 function openGeneratePanel() {
   const panel = document.getElementById('generatePanel');
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  renderTopicGrid();
+}
 
+function renderTopicGrid() {
   const grid = document.getElementById('topicGrid');
   grid.innerHTML = TOPICS.map((t, i) => `
     <div class="topic-item ${selectedTopicIndex === i ? 'selected' : ''}" onclick="selectTopic(${i})">
@@ -292,7 +295,7 @@ function openGeneratePanel() {
 
 function selectTopic(idx) {
   selectedTopicIndex = selectedTopicIndex === idx ? null : idx;
-  openGeneratePanel();
+  renderTopicGrid();
 }
 
 async function runGenerate() {
