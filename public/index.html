@@ -371,11 +371,14 @@ let currentContentId = null;
 function showProgressPanel() {
   document.getElementById('progressPanel').style.display = 'block';
   document.getElementById('terminalBody').innerHTML = '';
-  document.getElementById('terminalStatus').textContent = '생성 중...';
+  document.getElementById('terminalStatus').textContent = '서버 연결 대기 중...';
   document.getElementById('terminalProgress').style.width = '0%';
   document.getElementById('terminalElapsed').textContent = '0초';
+  document.getElementById('terminalTitle').textContent = 'Videoto — 서버 시작 대기 중...';
   lastLogCount = 0;
+  currentContentId = null;
   generateStartTime = Date.now();
+  appendLogLine({ time: new Date().toISOString(), icon: '⏳', message: 'AI 서버에 생성 요청 전송... 서버 시작까지 5~10초 소요', step: 'init' });
   startProgressPolling();
 }
 
@@ -403,6 +406,9 @@ function appendLogLine(entry) {
 
 function startProgressPolling() {
   stopProgressPolling();
+  let waitingForServer = true; // 서버가 아직 시작 안 했을 수 있음
+  let serverFoundAt = null;
+
   progressTimer = setInterval(async () => {
     try {
       const url = currentContentId
@@ -411,36 +417,60 @@ function startProgressPolling() {
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        if (data.success && data.progress) {
-          const p = data.progress;
-          if (p.contentId) currentContentId = p.contentId;
-          document.getElementById('terminalTitle').textContent = `Videoto — ${p.topic?.title || '콘텐츠 생성'} (${p.contentId || ''})`;
 
-          // 새 로그만 추가
-          const logs = p.logs || [];
-          if (logs.length > lastLogCount) {
-            for (let i = lastLogCount; i < logs.length; i++) {
-              appendLogLine(logs[i]);
+        // 서버가 아직 progress를 안 만들었으면 대기
+        if (!data.success || !data.progress) {
+          if (waitingForServer) {
+            const waited = Math.round((Date.now() - generateStartTime) / 1000);
+            document.getElementById('terminalStatus').textContent = `서버 연결 대기 중... (${waited}초)`;
+            if (waited > 300) { // 5분 넘으면 타임아웃
+              appendLogLine({ time: new Date().toISOString(), icon: '❌', message: '서버 응답 타임아웃 (5분)', step: 'error' });
+              stopProgressPolling();
             }
-            lastLogCount = logs.length;
           }
+          return;
+        }
 
-          // 프로그레스바
-          const total = 8; // init, stage0, s1_shorts, s1_carousel, s1_blog, stage2, stage3, complete
-          const done = logs.filter(l => l.icon === '✅' || l.icon === '⏭️' || l.icon === '🎉').length;
-          const pct = Math.min(100, Math.round((done / total) * 100));
-          document.getElementById('terminalProgress').style.width = pct + '%';
+        const p = data.progress;
 
-          // 상태
-          if (p.currentStatus === 'done') {
-            document.getElementById('terminalStatus').textContent = '완료!';
+        // 서버가 진행 중인 작업을 반환했으면 추적 시작
+        if (waitingForServer && p.contentId) {
+          waitingForServer = false;
+          serverFoundAt = Date.now();
+          currentContentId = p.contentId;
+          appendLogLine({ time: new Date().toISOString(), icon: '🔗', message: `서버 연결됨 — ${p.contentId}`, step: 'init' });
+        }
+
+        if (p.contentId) currentContentId = p.contentId;
+        document.getElementById('terminalTitle').textContent = `Videoto — ${p.topic?.title || '콘텐츠 생성'} (${p.contentId || ''})`;
+
+        // 새 로그만 추가
+        const logs = p.logs || [];
+        if (logs.length > lastLogCount) {
+          for (let i = lastLogCount; i < logs.length; i++) {
+            appendLogLine(logs[i]);
+          }
+          lastLogCount = logs.length;
+        }
+
+        // 프로그레스바
+        const total = 8;
+        const done = logs.filter(l => l.icon === '✅' || l.icon === '⏭️' || l.icon === '🎉').length;
+        const pct = Math.min(100, Math.round((done / total) * 100));
+        document.getElementById('terminalProgress').style.width = pct + '%';
+
+        // 상태 판단 — 서버 찾은 후 10초 이내에는 done 무시 (중간 기록일 수 있음)
+        if (p.currentStatus === 'done') {
+          const sinceFund = serverFoundAt ? (Date.now() - serverFoundAt) / 1000 : 999;
+          if (sinceFund > 10) {
+            document.getElementById('terminalStatus').textContent = '✅ 완료!';
             stopProgressPolling();
-          } else {
-            document.getElementById('terminalStatus').textContent = p.currentMessage || '진행 중...';
           }
+        } else {
+          document.getElementById('terminalStatus').textContent = p.currentMessage || '진행 중...';
         }
       }
-    } catch (e) { /* 무시 */ }
+    } catch (e) { /* 네트워크 오류 무시 — 다음 폴링에서 재시도 */ }
 
     // 경과 시간
     if (generateStartTime) {
