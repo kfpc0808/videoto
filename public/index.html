@@ -66,17 +66,26 @@
   .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--primary-light); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* 진행 상태 */
-  .progress-panel { background: var(--bg); border-radius: 12px; padding: 20px; margin-top: 16px; border: 1px solid var(--border); }
-  .progress-step { display: flex; align-items: center; gap: 12px; padding: 8px 0; font-size: 14px; }
-  .progress-step .icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-  .progress-step .icon.done { background: rgba(5,150,105,.2); color: #34d399; }
-  .progress-step .icon.running { background: rgba(59,130,246,.2); color: #60a5fa; animation: pulse 1.5s infinite; }
-  .progress-step .icon.waiting { background: rgba(148,163,184,.1); color: #64748b; }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
-  .progress-bar { height: 6px; background: var(--surface2); border-radius: 3px; margin-top: 12px; overflow: hidden; }
-  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-light)); border-radius: 3px; transition: width .5s; }
-  .progress-time { font-size: 12px; color: var(--text-dim); margin-top: 8px; text-align: right; }
+  /* 터미널 로그 */
+  .terminal { background: #0c0c0c; border-radius: 12px; border: 1px solid #333; overflow: hidden; }
+  .terminal-header { background: #1a1a2e; padding: 8px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #333; }
+  .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .terminal-dot.red { background: #ff5f56; } .terminal-dot.yellow { background: #ffbd2e; } .terminal-dot.green { background: #27c93f; }
+  .terminal-title { font-size: 12px; color: #888; margin-left: 8px; }
+  .terminal-body { padding: 16px; max-height: 500px; overflow-y: auto; font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace; font-size: 13px; line-height: 1.7; scroll-behavior: smooth; }
+  .log-line { padding: 2px 0; white-space: pre-wrap; word-break: break-word; }
+  .log-time { color: #666; }
+  .log-icon { margin: 0 4px; }
+  .log-msg { color: #e2e8f0; }
+  .log-detail { color: #64748b; padding-left: 90px; font-size: 12px; }
+  .log-data { color: #3b82f6; padding-left: 90px; font-size: 11px; }
+  .log-line.running .log-msg { color: #60a5fa; }
+  .log-line.done .log-msg { color: #34d399; }
+  .log-line.error .log-msg { color: #f87171; }
+  .log-line.warn .log-msg { color: #fbbf24; }
+  .terminal-footer { padding: 8px 16px; background: #1a1a2e; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #888; }
+  .progress-mini { height: 3px; background: #333; border-radius: 2px; flex: 1; margin: 0 12px; }
+  .progress-mini-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 2px; transition: width .5s; }
 
   /* 주제관리 */
   .topic-manage { display: grid; grid-template-columns: 1fr; gap: 8px; }
@@ -116,16 +125,20 @@
     <div class="stat-card"><div class="label">다음 주제</div><div class="value" id="statNextTopic" style="font-size:16px;">-</div><div class="sub" id="statNextTopicSub">-</div></div>
   </div>
 
-  <!-- 진행 상태 패널 -->
-  <div class="panel" id="progressPanel" style="display:none;">
-    <div class="panel-header">
-      <h2>🔄 <span id="progressTitle">콘텐츠 생성 진행 중...</span></h2>
-      <span id="progressElapsed" style="font-size:13px; color:var(--text-dim);"></span>
-    </div>
-    <div class="panel-body">
-      <div id="progressSteps"></div>
-      <div class="progress-bar"><div class="progress-bar-fill" id="progressBarFill" style="width:0%"></div></div>
-      <div class="progress-time" id="progressTime"></div>
+  <!-- 터미널 로그 패널 -->
+  <div id="progressPanel" style="display:none; margin-bottom:24px;">
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot red"></div><div class="terminal-dot yellow"></div><div class="terminal-dot green"></div>
+        <span class="terminal-title" id="terminalTitle">Videoto — 콘텐츠 생성 로그</span>
+      </div>
+      <div class="terminal-body" id="terminalBody"></div>
+      <div class="terminal-footer">
+        <span id="terminalStatus">대기</span>
+        <div class="progress-mini"><div class="progress-mini-fill" id="terminalProgress" style="width:0%"></div></div>
+        <span id="terminalElapsed">0초</span>
+        <button class="btn btn-sm btn-outline" onclick="downloadLog()" style="margin-left:8px;">📥 로그 저장</button>
+      </div>
     </div>
   </div>
 
@@ -281,7 +294,7 @@ async function loadDashboard() {
               <td>${score}</td>
               <td>${elapsed}</td>
               <td>${date}</td>
-              <td><button class="btn btn-sm btn-outline" onclick="showDetail('${c.contentId}')">상세</button> <button class="btn btn-sm btn-outline" onclick="downloadContent('${c.contentId}')">📦</button></td>
+              <td><button class="btn btn-sm btn-outline" onclick="showDetail('${c.contentId}')">상세</button> <button class="btn btn-sm btn-outline" onclick="showLog('${c.contentId}')">📋</button> <button class="btn btn-sm btn-outline" onclick="downloadContent('${c.contentId}')">📦</button></td>
             </tr>`;
           }).join('');
         }
@@ -350,79 +363,89 @@ async function runGenerate() {
 }
 
 // ════════════════════════════════════════
-// 실시간 진행 상태
+// 터미널 로그 시스템
 // ════════════════════════════════════════
-const STEP_LABELS = {
-  init: { label: '초기화', icon: '🔧' },
-  stage0: { label: 'Perplexity 트렌드 조사', icon: '🔍' },
-  stage1_shorts: { label: 'GPT-4o 쇼츠 생성', icon: '🎬' },
-  stage1_carousel: { label: 'GPT-4o 카드뉴스 생성', icon: '📰' },
-  stage1_blog: { label: 'GPT-4o 블로그 생성', icon: '📝' },
-  stage2: { label: 'Claude Opus 통합 검수', icon: '🔎' },
-  stage3: { label: 'Gemini 최종 패키징', icon: '📦' },
-  complete: { label: '완료', icon: '✅' },
-};
-const STEP_ORDER = ['stage0','stage1_shorts','stage1_carousel','stage1_blog','stage2','stage3'];
+let lastLogCount = 0;
+let currentContentId = null;
 
 function showProgressPanel() {
-  const panel = document.getElementById('progressPanel');
-  panel.style.display = 'block';
-  document.getElementById('progressTitle').textContent = '콘텐츠 생성 진행 중...';
-  renderProgressSteps({});
+  document.getElementById('progressPanel').style.display = 'block';
+  document.getElementById('terminalBody').innerHTML = '';
+  document.getElementById('terminalStatus').textContent = '생성 중...';
+  document.getElementById('terminalProgress').style.width = '0%';
+  document.getElementById('terminalElapsed').textContent = '0초';
+  lastLogCount = 0;
+  generateStartTime = Date.now();
   startProgressPolling();
 }
 
-function renderProgressSteps(steps) {
-  const html = STEP_ORDER.map((key, i) => {
-    const step = steps[key];
-    const info = STEP_LABELS[key] || { label: key, icon: '⬜' };
-    let iconClass = 'waiting';
-    let iconText = '⬜';
-    let detail = '';
-    if (step) {
-      if (step.status === 'done') { iconClass = 'done'; iconText = '✅'; }
-      else if (step.status === 'running') { iconClass = 'running'; iconText = '🔄'; }
-      detail = step.detail || '';
-    }
-    return `<div class="progress-step">
-      <div class="icon ${iconClass}">${iconText}</div>
-      <div style="flex:1">
-        <div><strong>${info.label}</strong></div>
-        ${detail ? `<div style="font-size:12px; color:var(--text-dim);">${detail}</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
-  document.getElementById('progressSteps').innerHTML = html;
+function appendLogLine(entry) {
+  const body = document.getElementById('terminalBody');
+  const time = entry.time ? new Date(entry.time).toLocaleTimeString('ko') : '';
+  const cls = entry.step === 'complete' ? 'done' : entry.icon?.includes('✅') ? 'done' : entry.icon?.includes('❌') ? 'error' : entry.icon?.includes('⚠️') ? 'warn' : 'running';
 
-  // 프로그레스바 계산
-  const doneCount = STEP_ORDER.filter(k => steps[k]?.status === 'done').length;
-  const runningCount = STEP_ORDER.filter(k => steps[k]?.status === 'running').length;
-  const percent = Math.round(((doneCount + runningCount * 0.5) / STEP_ORDER.length) * 100);
-  document.getElementById('progressBarFill').style.width = percent + '%';
+  let html = `<div class="log-line ${cls}">`;
+  html += `<span class="log-time">[${time}]</span> `;
+  html += `<span class="log-icon">${entry.icon || ''}</span> `;
+  html += `<span class="log-msg">${entry.message || ''}</span>`;
+  html += `</div>`;
 
-  // 경과 시간
-  if (generateStartTime) {
-    const elapsed = Math.round((Date.now() - generateStartTime) / 1000);
-    document.getElementById('progressTime').textContent = `경과: ${elapsed}초`;
+  if (entry.detail) {
+    const detailLines = entry.detail.split('\n');
+    detailLines.forEach(line => {
+      html += `<div class="log-detail">→ ${line}</div>`;
+    });
   }
+
+  body.innerHTML += html;
+  body.scrollTop = body.scrollHeight;
 }
 
 function startProgressPolling() {
   stopProgressPolling();
   progressTimer = setInterval(async () => {
     try {
-      const res = await fetch(`${API_BASE}/generateProgress`);
+      const url = currentContentId
+        ? `${API_BASE}/generateProgress?id=${currentContentId}`
+        : `${API_BASE}/generateProgress`;
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        if (data.success && data.progress?.steps) {
-          renderProgressSteps(data.progress.steps);
+        if (data.success && data.progress) {
+          const p = data.progress;
+          if (p.contentId) currentContentId = p.contentId;
+          document.getElementById('terminalTitle').textContent = `Videoto — ${p.topic?.title || '콘텐츠 생성'} (${p.contentId || ''})`;
+
+          // 새 로그만 추가
+          const logs = p.logs || [];
+          if (logs.length > lastLogCount) {
+            for (let i = lastLogCount; i < logs.length; i++) {
+              appendLogLine(logs[i]);
+            }
+            lastLogCount = logs.length;
+          }
+
+          // 프로그레스바
+          const total = 8; // init, stage0, s1_shorts, s1_carousel, s1_blog, stage2, stage3, complete
+          const done = logs.filter(l => l.icon === '✅' || l.icon === '⏭️' || l.icon === '🎉').length;
+          const pct = Math.min(100, Math.round((done / total) * 100));
+          document.getElementById('terminalProgress').style.width = pct + '%';
+
+          // 상태
+          if (p.currentStatus === 'done') {
+            document.getElementById('terminalStatus').textContent = '완료!';
+            stopProgressPolling();
+          } else {
+            document.getElementById('terminalStatus').textContent = p.currentMessage || '진행 중...';
+          }
         }
       }
     } catch (e) { /* 무시 */ }
-    // 경과 시간 업데이트
+
+    // 경과 시간
     if (generateStartTime) {
       const elapsed = Math.round((Date.now() - generateStartTime) / 1000);
-      document.getElementById('progressTime').textContent = `경과: ${elapsed}초`;
+      document.getElementById('terminalElapsed').textContent = `${elapsed}초`;
     }
   }, 2000);
 }
@@ -432,19 +455,15 @@ function stopProgressPolling() {
 }
 
 function updateProgressComplete(data) {
-  document.getElementById('progressTitle').textContent = `✅ ${data.contentId} 생성 완료!`;
-  document.getElementById('progressBarFill').style.width = '100%';
+  document.getElementById('terminalStatus').textContent = '✅ 완료!';
+  document.getElementById('terminalProgress').style.width = '100%';
   const elapsed = data.elapsed || Math.round((Date.now() - generateStartTime) / 1000);
-  document.getElementById('progressTime').textContent = `완료! ${elapsed}초 소요, 검수 ${data.score || '-'}점`;
-  // 모든 스텝 done으로
-  const allDone = {};
-  STEP_ORDER.forEach(k => { allDone[k] = { status: 'done', detail: '' }; });
-  renderProgressSteps(allDone);
+  document.getElementById('terminalElapsed').textContent = `${elapsed}초 (${data.score || '-'}점)`;
 }
 
 function updateProgressError(error) {
-  document.getElementById('progressTitle').textContent = `❌ 생성 실패`;
-  document.getElementById('progressTime').textContent = error;
+  document.getElementById('terminalStatus').textContent = '❌ 실패';
+  appendLogLine({ time: new Date().toISOString(), icon: '❌', message: `에러: ${error}`, step: 'error' });
 }
 
 async function checkActiveProgress() {
@@ -453,12 +472,52 @@ async function checkActiveProgress() {
     if (res.ok) {
       const data = await res.json();
       if (data.success && data.progress && data.progress.currentStatus === 'running') {
-        generateStartTime = new Date(data.progress.updatedAt).getTime() - 60000;
-        showProgressPanel();
-        renderProgressSteps(data.progress.steps || {});
+        currentContentId = data.progress.contentId || data.progress.id;
+        generateStartTime = new Date(data.progress.startedAt || data.progress.updatedAt).getTime();
+        document.getElementById('progressPanel').style.display = 'block';
+        // 기존 로그 전부 표시
+        (data.progress.logs || []).forEach(entry => appendLogLine(entry));
+        lastLogCount = (data.progress.logs || []).length;
+        startProgressPolling();
       }
     }
   } catch (e) { /* 무시 */ }
+}
+
+function downloadLog() {
+  const body = document.getElementById('terminalBody');
+  const text = body.innerText;
+  const blob = new Blob([text], { type: 'text/plain; charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `videoto_log_${currentContentId || 'unknown'}.txt`;
+  a.click();
+}
+
+// 콘텐츠 상세에서 로그 보기
+async function showLog(contentId) {
+  try {
+    const res = await fetch(`${API_BASE}/generateProgress?id=${contentId}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.progress) {
+        currentContentId = contentId;
+        document.getElementById('progressPanel').style.display = 'block';
+        document.getElementById('terminalBody').innerHTML = '';
+        document.getElementById('terminalTitle').textContent = `Videoto — ${data.progress.topic?.title || ''} (${contentId})`;
+        lastLogCount = 0;
+        (data.progress.logs || []).forEach(entry => appendLogLine(entry));
+        lastLogCount = (data.progress.logs || []).length;
+        const summary = data.progress.summary;
+        if (summary) {
+          document.getElementById('terminalStatus').textContent = '완료';
+          document.getElementById('terminalProgress').style.width = '100%';
+          document.getElementById('terminalElapsed').textContent = `${summary.elapsed}초 (${summary.score}점)`;
+        }
+        document.getElementById('progressPanel').scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  } catch (e) { alert('로그 로드 실패: ' + e.message); }
 }
 
 // ════════════════════════════════════════
@@ -581,13 +640,18 @@ async function showDetail(contentId) {
           <button class="tab active" onclick="showTab('shorts',this)">🎬 쇼츠</button>
           <button class="tab" onclick="showTab('carousel',this)">📰 카드뉴스</button>
           <button class="tab" onclick="showTab('blog',this)">📝 블로그</button>
-          <button class="tab" onclick="showTab('meta',this)">📊 메타정보</button>
+          <button class="tab" onclick="showTab('log',this)">📋 생성 로그</button>
+          <button class="tab" onclick="showTab('meta',this)">📊 메타/AI학습</button>
         </div>
         <div id="tab_shorts">${renderShorts(final.shorts)}</div>
         <div id="tab_carousel" style="display:none">${renderCarousel(final.carousel)}</div>
         <div id="tab_blog" style="display:none">${renderBlog(final.blog)}</div>
+        <div id="tab_log" style="display:none"><div id="modalLogArea" style="background:#0c0c0c; border-radius:8px; padding:16px; max-height:400px; overflow-y:auto; font-family:monospace; font-size:13px; line-height:1.7; color:#e2e8f0;">로그 로드 중...</div>
+          <button class="btn btn-sm btn-outline" onclick="downloadLogById('${contentId}')" style="margin-top:8px;">📥 로그 파일 저장</button></div>
         <div id="tab_meta" style="display:none">${renderMeta(c, review)}</div>
       `;
+      // 모달 내 로그 로드
+      loadModalLog(contentId);
     } else { body.innerHTML = '<p>콘텐츠를 찾을 수 없습니다.</p>'; }
   } catch (e) { body.innerHTML = `<p>로드 실패: ${e.message}</p>`; }
 }
@@ -642,6 +706,47 @@ function renderMeta(c, review) {
 }
 
 function closeModal() { document.getElementById('detailModal').classList.remove('active'); }
+
+async function loadModalLog(contentId) {
+  try {
+    const res = await fetch(`${API_BASE}/generateProgress?id=${contentId}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.progress?.logs) {
+        const area = document.getElementById('modalLogArea');
+        area.innerHTML = data.progress.logs.map(entry => {
+          const time = entry.time ? new Date(entry.time).toLocaleTimeString('ko') : '';
+          const color = entry.icon?.includes('✅') || entry.icon === '🎉' ? '#34d399' : entry.icon?.includes('❌') ? '#f87171' : entry.icon?.includes('⚠️') ? '#fbbf24' : '#60a5fa';
+          let html = `<div style="padding:2px 0;"><span style="color:#666;">[${time}]</span> <span>${entry.icon||''}</span> <span style="color:${color};">${entry.message||''}</span></div>`;
+          if (entry.detail) {
+            entry.detail.split('\n').forEach(line => {
+              html += `<div style="padding-left:80px; color:#64748b; font-size:12px;">→ ${line}</div>`;
+            });
+          }
+          return html;
+        }).join('');
+        // AI 학습 데이터
+        if (data.progress.aiLearning) {
+          area.innerHTML += `<div style="margin-top:12px; padding-top:12px; border-top:1px solid #333; color:#3b82f6; font-size:11px;">[AI 학습 데이터] 후킹패턴: ${data.progress.aiLearning.shortsHookPattern || '-'} | 점수: ${data.progress.aiLearning.reviewScore || '-'} | 이슈: ${data.progress.aiLearning.reviewIssues?.length || 0}건</div>`;
+        }
+      } else {
+        document.getElementById('modalLogArea').innerHTML = '<span style="color:#666;">이 콘텐츠의 생성 로그가 없습니다.</span>';
+      }
+    }
+  } catch (e) { document.getElementById('modalLogArea').innerHTML = `<span style="color:#f87171;">로그 로드 실패: ${e.message}</span>`; }
+}
+
+async function downloadLogById(contentId) {
+  try {
+    const res = await fetch(`${API_BASE}/generateProgress?id=${contentId}`);
+    if (res.ok) {
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data.progress, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = `videoto_log_${contentId}.json`; a.click();
+    }
+  } catch (e) { alert('다운로드 실패: ' + e.message); }
+}
 
 async function downloadContent(contentId) {
   try {
