@@ -38,6 +38,10 @@
   .badge { padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block; }
   .badge-published { background: rgba(5,150,105,.15); color: #34d399; }
   .badge-generated { background: rgba(217,119,6,.15); color: #fbbf24; }
+  .badge-pending { background: rgba(139,92,246,.15); color: #a78bfa; }
+  .badge-approved { background: rgba(59,130,246,.15); color: #60a5fa; }
+  .badge-hold { background: rgba(148,163,184,.15); color: #94a3b8; }
+  .badge-rejected { background: rgba(220,38,38,.15); color: #f87171; }
   .badge-error { background: rgba(220,38,38,.15); color: #f87171; }
   .btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: .2s; display: inline-flex; align-items: center; gap: 6px; }
   .btn-primary { background: var(--primary); color: #fff; }
@@ -95,6 +99,26 @@
   .topic-row input.w-title { flex: 1; min-width: 120px; }
   .topic-row input.w-hook { flex: 1; min-width: 150px; }
 
+  /* 검수 패널 */
+  .review-item { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  .review-item h4 { font-size: 14px; margin-bottom: 8px; }
+  .review-item .preview { color: var(--text-dim); font-size: 13px; margin-bottom: 10px; }
+  .review-btns { display: flex; gap: 8px; margin-bottom: 8px; }
+  .review-btns button { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); cursor: pointer; font-size: 13px; }
+  .review-btns button.active-good { background: rgba(5,150,105,.2); border-color: #34d399; color: #34d399; }
+  .review-btns button.active-edit { background: rgba(217,119,6,.2); border-color: #fbbf24; color: #fbbf24; }
+  .review-btns button.active-reject { background: rgba(220,38,38,.2); border-color: #f87171; color: #f87171; }
+  .review-memo { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; font-size: 12px; margin-top: 6px; }
+  .naver-modal { background: var(--surface); border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; }
+  .naver-modal input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 14px; margin: 4px 0 12px; }
+
+  /* 상품 선택 바 */
+  .product-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; gap: 8px; align-items: center; overflow-x: auto; }
+  .product-tab { padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-dim); transition: .2s; white-space: nowrap; }
+  .product-tab:hover { border-color: var(--primary-light); color: var(--primary-light); }
+  .product-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .product-tab .day { font-size: 10px; color: inherit; opacity: 0.7; margin-left: 4px; }
+
   @media (max-width: 768px) {
     .grid { grid-template-columns: 1fr 1fr; }
     .topic-grid { grid-template-columns: 1fr; }
@@ -115,6 +139,15 @@
     <button class="btn btn-outline" onclick="openTopicManager()">📝 주제 관리</button>
     <button class="btn btn-outline" onclick="loadDashboard()">🔄 새로고침</button>
   </div>
+</div>
+
+<!-- 상품 선택 바 -->
+<div class="product-bar" id="productBar">
+  <button class="product-tab active" onclick="selectProduct('conhome')">🏠 컨설턴트홈페이지 <span class="day">화</span></button>
+  <button class="product-tab" onclick="selectProduct('corphome')">🏢 기업홈페이지 <span class="day">월</span></button>
+  <button class="product-tab" onclick="selectProduct('innercircle')">🔵 이너서클멤버십 <span class="day">수</span></button>
+  <button class="product-tab" onclick="selectProduct('jarvia')">🟣 자비아멤버십 <span class="day">목</span></button>
+  <button class="product-tab" onclick="selectProduct('taxnavi')">📊 택스나비 <span class="day">금</span></button>
 </div>
 
 <div class="container">
@@ -159,7 +192,7 @@
   <!-- 수동 생성 패널 -->
   <div class="panel" id="generatePanel" style="display:none;">
     <div class="panel-header">
-      <h2>➕ 수동 콘텐츠 생성</h2>
+      <h2>➕ 수동 콘텐츠 생성 — <span id="generateProductName" style="color:var(--primary-light)">컨설턴트홈페이지</span></h2>
       <button class="btn btn-sm btn-outline" onclick="document.getElementById('generatePanel').style.display='none'">닫기</button>
     </div>
     <div class="panel-body">
@@ -200,13 +233,63 @@
   </div>
 </div>
 
+<!-- 검수 모달 -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <h2>✍️ 게시 전 검수 — <span id="reviewContentId"></span></h2>
+      <button class="close-btn" onclick="document.getElementById('reviewModal').classList.remove('active')">&times;</button>
+    </div>
+    <div class="modal-body" id="reviewBody">
+      <div class="loading"><div class="spinner"></div> 로딩 중...</div>
+    </div>
+  </div>
+</div>
+
+<!-- 네이버 성과 입력 모달 -->
+<div class="modal-overlay" id="naverModal">
+  <div class="naver-modal">
+    <h3 style="margin-bottom:16px;">📊 네이버 블로그 성과 입력</h3>
+    <input type="hidden" id="naverContentId">
+    <label style="font-size:13px; color:var(--text-dim);">방문수</label>
+    <input type="number" id="naverVisits" placeholder="0">
+    <label style="font-size:13px; color:var(--text-dim);">좋아요</label>
+    <input type="number" id="naverLikes" placeholder="0">
+    <label style="font-size:13px; color:var(--text-dim);">댓글수</label>
+    <input type="number" id="naverComments" placeholder="0">
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button class="btn btn-primary" onclick="submitNaverMetrics()">저장</button>
+      <button class="btn btn-outline" onclick="document.getElementById('naverModal').classList.remove('active')">취소</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API_BASE = 'https://asia-northeast3-kfpc-company-support-project.cloudfunctions.net';
+
+const PRODUCTS = {
+  conhome:     { id: 'conhome',     name: '컨설턴트홈페이지', day: '화', icon: '🏠' },
+  corphome:    { id: 'corphome',    name: '기업홈페이지',     day: '월', icon: '🏢' },
+  innercircle: { id: 'innercircle', name: '이너서클멤버십',   day: '수', icon: '🔵' },
+  jarvia:      { id: 'jarvia',      name: '자비아멤버십',     day: '목', icon: '🟣' },
+  taxnavi:     { id: 'taxnavi',     name: '택스나비',         day: '금', icon: '📊' },
+};
+let currentProductId = 'conhome';
 
 let TOPICS = [];
 let selectedTopicIndex = null;
 let progressTimer = null;
 let generateStartTime = null;
+
+function selectProduct(productId) {
+  currentProductId = productId;
+  document.querySelectorAll('.product-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.product-tab[onclick*="${productId}"]`).classList.add('active');
+  loadTopics();
+  loadDashboard();
+  // 주제 관리 패널이 열려있으면 갱신
+  if (document.getElementById('topicPanel').style.display !== 'none') renderTopicManager();
+}
 
 // ════════════════════════════════════════
 // 초기화
@@ -222,7 +305,7 @@ async function init() {
 // ════════════════════════════════════════
 async function loadTopics() {
   try {
-    const res = await fetch(`${API_BASE}/topicList`);
+    const res = await fetch(`${API_BASE}/topicList?productId=${currentProductId}`);
     if (res.ok) {
       const data = await res.json();
       if (data.success && data.topics.length > 0) {
@@ -231,19 +314,23 @@ async function loadTopics() {
       }
     }
   } catch (e) { console.log('주제 로드 실패, 기본값 사용'); }
-  // 폴백
-  TOPICS = [
-    { id:'T01', category:'AI기능', title:'여러 AI를 한 번에', hook:'ChatGPT·Gemini·Claude·Perplexity 통합' },
-    { id:'T02', category:'AI기능', title:'AI 버튼 한 번으로 전문 분석', hook:'상속·증여·절세·은퇴 맞춤 분석' },
-    { id:'T03', category:'AI기능', title:'RAG 기반 자료 검색', hook:'업로드하면 AI가 즉시 답변' },
-    { id:'T04', category:'AI기능', title:'이중 답변 구조', hook:'고객엔 핵심만, 전문가엔 완전한 해답' },
-    { id:'T05', category:'관리', title:'내 업무 스타일에 맞춘 커스터마이징', hook:'메뉴·디자인 자유 설정' },
-    { id:'T06', category:'관리', title:'반응형 + 모바일 최적화', hook:'PC·모바일 완벽 지원' },
-    { id:'T07', category:'마케팅', title:'고객은 준비된 컨설턴트를 선택합니다', hook:'준비된 전문가 이미지 각인' },
-    { id:'T08', category:'마케팅', title:'당신의 시간은 더 가치 있는 일에', hook:'반복 업무는 AI에게' },
-    { id:'T09', category:'브랜딩', title:'전문성, 이제 홈페이지가 말합니다', hook:'전략이 담긴 나만의 홈페이지' },
-    { id:'T10', category:'브랜딩', title:'혼자 일하지 마세요', hook:'프리미엄 AI가 24시간 지원' },
-  ];
+  // 폴백 (conhome만 기본값)
+  if (currentProductId === 'conhome') {
+    TOPICS = [
+      { id:'T01', category:'AI기능', title:'여러 AI를 한 번에', hook:'ChatGPT·Gemini·Claude·Perplexity 통합' },
+      { id:'T02', category:'AI기능', title:'AI 버튼 한 번으로 전문 분석', hook:'상속·증여·절세·은퇴 맞춤 분석' },
+      { id:'T03', category:'AI기능', title:'RAG 기반 자료 검색', hook:'업로드하면 AI가 즉시 답변' },
+      { id:'T04', category:'AI기능', title:'이중 답변 구조', hook:'고객엔 핵심만, 전문가엔 완전한 해답' },
+      { id:'T05', category:'관리', title:'내 업무 스타일에 맞춘 커스터마이징', hook:'메뉴·디자인 자유 설정' },
+      { id:'T06', category:'관리', title:'반응형 + 모바일 최적화', hook:'PC·모바일 완벽 지원' },
+      { id:'T07', category:'마케팅', title:'고객은 준비된 컨설턴트를 선택합니다', hook:'준비된 전문가 이미지 각인' },
+      { id:'T08', category:'마케팅', title:'당신의 시간은 더 가치 있는 일에', hook:'반복 업무는 AI에게' },
+      { id:'T09', category:'브랜딩', title:'전문성, 이제 홈페이지가 말합니다', hook:'전략이 담긴 나만의 홈페이지' },
+      { id:'T10', category:'브랜딩', title:'혼자 일하지 마세요', hook:'프리미엄 AI가 24시간 지원' },
+    ];
+  } else {
+    TOPICS = [];
+  }
 }
 
 // ════════════════════════════════════════
@@ -280,12 +367,21 @@ async function loadDashboard() {
           tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:var(--text-dim);">아직 생성된 콘텐츠가 없습니다. 수동 생성을 시작해보세요.</td></tr>';
         } else {
           tbody.innerHTML = data.contents.map(c => {
-            const status = c.status === 'published' ? '<span class="badge badge-published">게시완료</span>'
-              : c.status === 'error' ? '<span class="badge badge-error">에러</span>'
-              : '<span class="badge badge-generated">대기중</span>';
+            const statusMap = {
+              'published': '<span class="badge badge-published">게시완료</span>',
+              'approved': '<span class="badge badge-approved">승인됨</span>',
+              'pending_review': '<span class="badge badge-pending">검수대기</span>',
+              'hold': '<span class="badge badge-hold">보류</span>',
+              'rejected': '<span class="badge badge-rejected">반려</span>',
+              'error': '<span class="badge badge-error">에러</span>',
+              'generated': '<span class="badge badge-generated">대기중</span>',
+            };
+            const status = statusMap[c.status] || `<span class="badge badge-generated">${c.status}</span>`;
             const date = c.createdAt ? new Date(c.createdAt._seconds ? c.createdAt._seconds * 1000 : c.createdAt).toLocaleDateString('ko') : '-';
             const score = c.metadata?.stages?.reviewed?.review?.totalScore || c.review?.totalScore || '-';
             const elapsed = c.metadata?.elapsedSeconds ? `${c.metadata.elapsedSeconds}초` : '-';
+            const reviewBtn = (c.status === 'pending_review' || c.status === 'generated') ? `<button class="btn btn-sm btn-primary" onclick="openReview('${c.contentId}')">✍️ 검수</button> ` : '';
+            const naverBtn = c.status === 'published' ? `<button class="btn btn-sm btn-outline" onclick="openNaverInput('${c.contentId}')">📊</button> ` : '';
             return `<tr>
               <td><a href="#" onclick="showDetail('${c.contentId}');return false" style="color:var(--primary-light)">${c.contentId}</a></td>
               <td>${c.topic?.title || '-'}</td>
@@ -294,7 +390,7 @@ async function loadDashboard() {
               <td>${score}</td>
               <td>${elapsed}</td>
               <td>${date}</td>
-              <td><button class="btn btn-sm btn-outline" onclick="showDetail('${c.contentId}')">상세</button> <button class="btn btn-sm btn-outline" onclick="showLog('${c.contentId}')">📋</button> <button class="btn btn-sm btn-outline" onclick="downloadContent('${c.contentId}')">⬇️</button></td>
+              <td>${reviewBtn}<button class="btn btn-sm btn-outline" onclick="showDetail('${c.contentId}')">상세</button> <button class="btn btn-sm btn-outline" onclick="showLog('${c.contentId}')">📋</button> ${naverBtn}<button class="btn btn-sm btn-outline" onclick="downloadContent('${c.contentId}')">⬇️</button></td>
             </tr>`;
           }).join('');
         }
@@ -309,10 +405,15 @@ async function loadDashboard() {
 function openGeneratePanel() {
   const panel = document.getElementById('generatePanel');
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('generateProductName').textContent = PRODUCTS[currentProductId]?.name || currentProductId;
   renderTopicGrid();
 }
 
 function renderTopicGrid() {
+  if (TOPICS.length === 0) {
+    document.getElementById('topicGrid').innerHTML = `<p style="color:var(--text-dim); padding:20px;">이 상품의 주제가 아직 없습니다. 📝 주제 관리에서 추가하세요.</p>`;
+    return;
+  }
   document.getElementById('topicGrid').innerHTML = TOPICS.map((t, i) => `
     <div class="topic-item ${selectedTopicIndex === i ? 'selected' : ''}" onclick="selectTopic(${i})">
       <div class="cat">${t.category}</div>
@@ -338,8 +439,8 @@ async function runGenerate() {
   showProgressPanel();
 
   const url = selectedTopicIndex !== null
-    ? `${API_BASE}/manualGenerate?topicIndex=${selectedTopicIndex}`
-    : `${API_BASE}/manualGenerate`;
+    ? `${API_BASE}/manualGenerate?productId=${currentProductId}&topicIndex=${selectedTopicIndex}`
+    : `${API_BASE}/manualGenerate?productId=${currentProductId}`;
 
   try {
     const res = await fetch(url);
@@ -591,7 +692,7 @@ async function saveTopic(idx) {
   try {
     const res = await fetch(`${API_BASE}/topicUpdate`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'edit', topic: { id: topic.id, category, title, hook } })
+      body: JSON.stringify({ action: 'edit', topic: { id: topic.id, category, title, hook }, productId: currentProductId })
     });
     const data = await res.json();
     if (data.success) {
@@ -613,7 +714,7 @@ async function saveNewTopic() {
   try {
     const res = await fetch(`${API_BASE}/topicUpdate`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'add', topic: { category, title, hook } })
+      body: JSON.stringify({ action: 'add', topic: { category, title, hook }, productId: currentProductId })
     });
     const data = await res.json();
     if (data.success) {
@@ -638,7 +739,7 @@ async function deleteTopic(topicId, idx) {
   try {
     const res = await fetch(`${API_BASE}/topicUpdate`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete', topic: { id: topicId } })
+      body: JSON.stringify({ action: 'delete', topic: { id: topicId }, productId: currentProductId })
     });
     const data = await res.json();
     if (data.success) {
@@ -672,6 +773,7 @@ async function showDetail(contentId) {
           <button class="tab" onclick="showTab('blog',this)">📝 블로그</button>
           <button class="tab" onclick="showTab('log',this)">📋 생성 로그</button>
           <button class="tab" onclick="showTab('meta',this)">📊 메타/AI학습</button>
+          <button class="tab" onclick="showTab('perf',this)">📈 성과</button>
         </div>
         <div id="tab_shorts">${renderShorts(final.shorts)}</div>
         <div id="tab_carousel" style="display:none">${renderCarousel(final.carousel)}</div>
@@ -679,9 +781,11 @@ async function showDetail(contentId) {
         <div id="tab_log" style="display:none"><div id="modalLogArea" style="background:#0c0c0c; border-radius:8px; padding:16px; max-height:400px; overflow-y:auto; font-family:monospace; font-size:13px; line-height:1.7; color:#e2e8f0;">로그 로드 중...</div>
           <button class="btn btn-sm btn-outline" onclick="downloadLogById('${contentId}')" style="margin-top:8px;">📥 로그 파일 저장</button></div>
         <div id="tab_meta" style="display:none">${renderMeta(c, review)}</div>
+        <div id="tab_perf" style="display:none">성과 로딩 중...</div>
       `;
       // 모달 내 로그 로드
       loadModalLog(contentId);
+      loadPerfTab(contentId);
     } else { body.innerHTML = '<p>콘텐츠를 찾을 수 없습니다.</p>'; }
   } catch (e) { body.innerHTML = `<p>로드 실패: ${e.message}</p>`; }
 }
@@ -737,6 +841,146 @@ function renderMeta(c, review) {
 
 function closeModal() { document.getElementById('detailModal').classList.remove('active'); }
 
+// ════════════════════════════════════════
+// 담당자 검수
+// ════════════════════════════════════════
+let reviewData = { shorts: {}, carousel: {}, blog: {} };
+
+async function openReview(contentId) {
+  const modal = document.getElementById('reviewModal');
+  const body = document.getElementById('reviewBody');
+  document.getElementById('reviewContentId').textContent = contentId;
+  modal.classList.add('active');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div> 콘텐츠 로딩 중...</div>';
+  reviewData = { shorts: {}, carousel: {}, blog: {} };
+
+  try {
+    const res = await fetch(`${API_BASE}/getContent?id=${contentId}`);
+    const data = await res.json();
+    if (!data.success || !data.content) { body.innerHTML = '<p>콘텐츠를 찾을 수 없습니다.</p>'; return; }
+    const c = data.content;
+    const final = c.stages?.final || c.finalContent || {};
+    const shorts = final.shorts || {};
+    const carousel = final.carousel || {};
+    const blog = final.blog || {};
+
+    body.innerHTML = `
+      <div class="review-item">
+        <h4>🎬 쇼츠</h4>
+        <div class="preview">
+          <strong>제목:</strong> ${shorts.title || '-'}<br>
+          <strong>후킹:</strong> ${shorts.scenes?.[0]?.subtitle || '-'}<br>
+          <strong>씬:</strong> ${shorts.scenes?.length || 0}개
+        </div>
+        <div class="review-btns" id="reviewBtns_shorts">
+          <button onclick="setRating('shorts','good',this)">👍 좋음</button>
+          <button onclick="setRating('shorts','edit',this)">✏️ 수정필요</button>
+          <button onclick="setRating('shorts','reject',this)">👎 반려</button>
+        </div>
+        <input class="review-memo" id="reviewMemo_shorts" placeholder="수정 메모 (선택사항)">
+      </div>
+
+      <div class="review-item">
+        <h4>📰 카드뉴스</h4>
+        <div class="preview">
+          <strong>표지:</strong> ${carousel.slides?.[0]?.headline || '-'}<br>
+          <strong>장수:</strong> ${carousel.slides?.length || 0}장
+        </div>
+        <div class="review-btns" id="reviewBtns_carousel">
+          <button onclick="setRating('carousel','good',this)">👍 좋음</button>
+          <button onclick="setRating('carousel','edit',this)">✏️ 수정필요</button>
+          <button onclick="setRating('carousel','reject',this)">👎 반려</button>
+        </div>
+        <input class="review-memo" id="reviewMemo_carousel" placeholder="수정 메모 (선택사항)">
+      </div>
+
+      <div class="review-item">
+        <h4>📝 블로그</h4>
+        <div class="preview">
+          <strong>제목:</strong> ${blog.title || '-'}<br>
+          <strong>분량:</strong> ${(blog.htmlBody || blog.body || '').replace(/<[^>]+>/g, '').length}자
+        </div>
+        <div class="review-btns" id="reviewBtns_blog">
+          <button onclick="setRating('blog','good',this)">👍 좋음</button>
+          <button onclick="setRating('blog','edit',this)">✏️ 수정필요</button>
+          <button onclick="setRating('blog','reject',this)">👎 반려</button>
+        </div>
+        <input class="review-memo" id="reviewMemo_blog" placeholder="수정 메모 (선택사항)">
+      </div>
+
+      <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
+        <label style="font-size:13px; color:var(--text-dim);">종합 메모 (선택)</label>
+        <input class="review-memo" id="reviewMemoGeneral" placeholder="전체적인 피드백" style="margin-top:4px;">
+        <div style="display:flex; gap:10px; margin-top:16px;">
+          <button class="btn btn-primary" onclick="submitReview('${contentId}', 'approved')">✅ 전체 승인 → 게시</button>
+          <button class="btn btn-outline" onclick="submitReview('${contentId}', 'hold')">⏸️ 보류</button>
+          <button class="btn btn-danger" onclick="submitReview('${contentId}', 'regenerate')">🔄 AI 재생성</button>
+        </div>
+      </div>
+    `;
+  } catch (e) { body.innerHTML = `<p>로드 실패: ${e.message}</p>`; }
+}
+
+function setRating(type, rating, btn) {
+  reviewData[type].rating = rating;
+  const btns = btn.parentElement.querySelectorAll('button');
+  btns.forEach(b => b.className = '');
+  if (rating === 'good') btn.className = 'active-good';
+  else if (rating === 'edit') btn.className = 'active-edit';
+  else btn.className = 'active-reject';
+}
+
+async function submitReview(contentId, decision) {
+  const shorts = { rating: reviewData.shorts.rating || 'good', memo: document.getElementById('reviewMemo_shorts')?.value || '' };
+  const carousel = { rating: reviewData.carousel.rating || 'good', memo: document.getElementById('reviewMemo_carousel')?.value || '' };
+  const blog = { rating: reviewData.blog.rating || 'good', memo: document.getElementById('reviewMemo_blog')?.value || '' };
+  const memo = document.getElementById('reviewMemoGeneral')?.value || '';
+
+  try {
+    const res = await fetch(`${API_BASE}/humanReview`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentId, shorts, carousel, blog, decision, memo })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const labels = { approved: '승인 완료! 10:00에 자동 게시됩니다.', hold: '보류 처리되었습니다.', regenerate: '반려 처리되었습니다.' };
+      alert(`✅ ${labels[decision] || '처리 완료'}`);
+      document.getElementById('reviewModal').classList.remove('active');
+      await loadDashboard();
+    } else { alert('처리 실패: ' + (data.error || '')); }
+  } catch (e) { alert('서버 연결 실패: ' + e.message); }
+}
+
+// ════════════════════════════════════════
+// 네이버 성과 수동 입력
+// ════════════════════════════════════════
+function openNaverInput(contentId) {
+  document.getElementById('naverContentId').value = contentId;
+  document.getElementById('naverVisits').value = '';
+  document.getElementById('naverLikes').value = '';
+  document.getElementById('naverComments').value = '';
+  document.getElementById('naverModal').classList.add('active');
+}
+
+async function submitNaverMetrics() {
+  const contentId = document.getElementById('naverContentId').value;
+  const visits = parseInt(document.getElementById('naverVisits').value) || 0;
+  const likes = parseInt(document.getElementById('naverLikes').value) || 0;
+  const comments = parseInt(document.getElementById('naverComments').value) || 0;
+
+  try {
+    const res = await fetch(`${API_BASE}/naverMetrics`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentId, visits, likes, comments })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert(`✅ 네이버 성과 저장 완료 (종합: ${data.engagementScore}점)`);
+      document.getElementById('naverModal').classList.remove('active');
+    } else { alert('저장 실패: ' + (data.error || '')); }
+  } catch (e) { alert('서버 연결 실패: ' + e.message); }
+}
+
 async function loadModalLog(contentId) {
   try {
     const res = await fetch(`${API_BASE}/generateProgress?id=${contentId}`);
@@ -778,6 +1022,53 @@ async function downloadLogById(contentId) {
   } catch (e) { alert('다운로드 실패: ' + e.message); }
 }
 
+async function loadPerfTab(contentId) {
+  const tab = document.getElementById('tab_perf');
+  if (!tab) return;
+  try {
+    const res = await fetch(`${API_BASE}/getContent?id=${contentId}`);
+    const data = await res.json();
+    const perf = data.content?.performance || {};
+    const hr = data.content?.humanReview || {};
+
+    let html = '';
+
+    // 담당자 검수 결과
+    if (hr.reviewer) {
+      html += `<h3 style="margin-bottom:12px;">👤 담당자 검수</h3>
+        <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+          <tr><th style="padding:6px 10px; text-align:left; border-bottom:1px solid var(--border); font-size:12px; color:var(--text-dim);">항목</th><th style="padding:6px 10px; text-align:left; border-bottom:1px solid var(--border); font-size:12px; color:var(--text-dim);">판정</th><th style="padding:6px 10px; text-align:left; border-bottom:1px solid var(--border); font-size:12px; color:var(--text-dim);">메모</th></tr>
+          <tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">쇼츠</td><td>${hr.shorts?.rating || '-'}</td><td>${hr.shorts?.memo || '-'}</td></tr>
+          <tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">카드뉴스</td><td>${hr.carousel?.rating || '-'}</td><td>${hr.carousel?.memo || '-'}</td></tr>
+          <tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">블로그</td><td>${hr.blog?.rating || '-'}</td><td>${hr.blog?.memo || '-'}</td></tr>
+        </table>
+        <p style="font-size:12px; color:var(--text-dim);">종합: ${hr.decision || '-'} | 검수자: ${hr.reviewer} | ${hr.reviewedAt ? new Date(hr.reviewedAt).toLocaleString('ko') : '-'}</p>
+        <hr style="border:none; border-top:1px solid var(--border); margin:16px 0;">`;
+    }
+
+    // 성과 데이터
+    if (perf.engagementScore > 0) {
+      html += `<h3>📈 플랫폼 성과 (종합: ${perf.engagementScore}점)</h3>
+        <table style="width:100%; border-collapse:collapse;">
+          <tr><th style="padding:6px 10px; text-align:left; border-bottom:1px solid var(--border); font-size:12px;">플랫폼</th><th style="padding:6px 10px; text-align:left; border-bottom:1px solid var(--border); font-size:12px;">주요 지표</th></tr>
+          ${perf.youtube ? `<tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">YouTube</td><td>조회수 ${perf.youtube.views || 0} / 좋아요 ${perf.youtube.likes || 0} / 댓글 ${perf.youtube.comments || 0}</td></tr>` : ''}
+          ${perf.instagram ? `<tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">Instagram</td><td>도달 ${perf.instagram.reach || 0} / 저장 ${perf.instagram.saves || 0} / 공유 ${perf.instagram.shares || 0}</td></tr>` : ''}
+          ${perf.tistory ? `<tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">Tistory</td><td>방문 ${perf.tistory.visits || 0} / 댓글 ${perf.tistory.comments || 0}</td></tr>` : ''}
+          ${perf.naver ? `<tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">네이버</td><td>방문 ${perf.naver.visits || 0} / 좋아요 ${perf.naver.likes || 0} / 댓글 ${perf.naver.comments || 0}</td></tr>` : ''}
+        </table>
+        <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">수집일: ${perf.collectedAt || '-'}</p>`;
+    } else {
+      html += '<p style="color:var(--text-dim);">성과 데이터가 아직 수집되지 않았습니다. 게시 후 월요일에 자동 수집됩니다.</p>';
+    }
+
+    if (!hr.reviewer && !(perf.engagementScore > 0)) {
+      html = '<p style="color:var(--text-dim);">검수 및 성과 데이터가 없습니다.</p>';
+    }
+
+    tab.innerHTML = html;
+  } catch (e) { tab.innerHTML = `<p style="color:#f87171;">로드 실패: ${e.message}</p>`; }
+}
+
 async function downloadContent(contentId) {
   try {
     const res = await fetch(`${API_BASE}/getContent?id=${contentId}`);
@@ -791,6 +1082,15 @@ async function downloadContent(contentId) {
     const review = c.stages?.reviewed?.review || {};
     const meta = c.metadata || {};
     const topic = c.topic || {};
+    const hr = c.humanReview || {};
+
+    // 성과 데이터 로드
+    let perf = {};
+    try {
+      const perfRes = await fetch(`${API_BASE}/getContent?id=${contentId}`);
+      // performance 컬렉션은 별도 API가 없으므로 content에 포함된 것 사용
+      perf = c.performance || {};
+    } catch (e) { /* 무시 */ }
 
     const html = `
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
@@ -837,6 +1137,18 @@ ${(review.issues || []).length > 0 ? `
   <tr><th>위치</th><th>문제</th><th>수정 제안</th></tr>
   ${review.issues.map(i => `<tr><td>${i.content || i.location || '-'}</td><td>${i.problem || '-'}</td><td>${i.fix || i.suggestion || '-'}</td></tr>`).join('')}
 </table>` : ''}
+` : ''}
+
+${hr.reviewer ? `
+<h2>👤 담당자 검수</h2>
+<table>
+  <tr><th>항목</th><th>판정</th><th>메모</th></tr>
+  <tr><td>쇼츠</td><td>${hr.shorts?.rating === 'good' ? '👍 좋음' : hr.shorts?.rating === 'edit' ? '✏️ 수정필요' : hr.shorts?.rating === 'reject' ? '👎 반려' : '-'}</td><td>${hr.shorts?.memo || '-'}</td></tr>
+  <tr><td>카드뉴스</td><td>${hr.carousel?.rating === 'good' ? '👍 좋음' : hr.carousel?.rating === 'edit' ? '✏️ 수정필요' : hr.carousel?.rating === 'reject' ? '👎 반려' : '-'}</td><td>${hr.carousel?.memo || '-'}</td></tr>
+  <tr><td>블로그</td><td>${hr.blog?.rating === 'good' ? '👍 좋음' : hr.blog?.rating === 'edit' ? '✏️ 수정필요' : hr.blog?.rating === 'reject' ? '👎 반려' : '-'}</td><td>${hr.blog?.memo || '-'}</td></tr>
+  <tr style="font-weight:bold; background:#f1f5f9;"><td>종합</td><td>${hr.decision === 'approved' ? '✅ 승인' : hr.decision === 'hold' ? '⏸️ 보류' : hr.decision === 'regenerate' ? '🔄 재생성' : '-'}</td><td>${hr.memo || '-'}</td></tr>
+</table>
+<p style="font-size:10pt; color:#64748b;">검수자: ${hr.reviewer || '-'} | 검수일: ${hr.reviewedAt ? new Date(hr.reviewedAt).toLocaleString('ko') : '-'}</p>
 ` : ''}
 
 <hr class="divider">
