@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Videoto — 콘텐츠 자동 생성 관리</title>
+<style>
+  :root {
+    --primary: #1a56db; --primary-light: #3b82f6; --success: #059669;
+    --warning: #d97706; --danger: #dc2626; --bg: #0f172a; --surface: #1e293b;
+    --surface2: #334155; --text: #f1f5f9; --text-dim: #94a3b8; --border: #475569;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Pretendard', 'Apple SD Gothic Neo', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .header h1 { font-size: 18px; font-weight: 700; white-space: nowrap; }
+  .header h1 span { color: var(--primary-light); }
+  .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .kill-switch { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .toggle { width: 44px; height: 24px; background: var(--success); border-radius: 12px; position: relative; cursor: pointer; transition: .3s; }
+  .toggle.off { background: var(--danger); }
+  .toggle::after { content: ''; width: 20px; height: 20px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: .3s; }
+  .toggle.off::after { left: 22px; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border-radius: 12px; padding: 20px; border: 1px solid var(--border); }
+  .stat-card .label { font-size: 13px; color: var(--text-dim); margin-bottom: 8px; }
+  .stat-card .value { font-size: 28px; font-weight: 800; }
+  .stat-card .sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+  .panel { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 24px; overflow: hidden; }
+  .panel-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .panel-header h2 { font-size: 16px; font-weight: 600; }
+  .panel-body { padding: 20px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 12px; font-size: 13px; color: var(--text-dim); font-weight: 500; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; font-size: 14px; border-bottom: 1px solid rgba(71,85,105,.3); }
+  tr:hover td { background: rgba(59,130,246,.05); }
+  .badge { padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block; }
+  .badge-published { background: rgba(5,150,105,.15); color: #34d399; }
+  .badge-generated { background: rgba(217,119,6,.15); color: #fbbf24; }
+  .badge-pending { background: rgba(139,92,246,.15); color: #a78bfa; }
+  .badge-approved { background: rgba(59,130,246,.15); color: #60a5fa; }
+  .badge-hold { background: rgba(148,163,184,.15); color: #94a3b8; }
+  .badge-rejected { background: rgba(220,38,38,.15); color: #f87171; }
+  .badge-error { background: rgba(220,38,38,.15); color: #f87171; }
+  .btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: .2s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-light); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--primary-light); color: var(--primary-light); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-success { background: var(--success); color: #fff; }
+  .topic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .topic-item { padding: 10px 14px; background: var(--surface2); border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: .2s; font-size: 13px; }
+  .topic-item:hover { border-color: var(--primary-light); }
+  .topic-item.selected { border-color: var(--primary); background: rgba(26,86,219,.15); }
+  .topic-item .cat { font-size: 11px; color: var(--text-dim); }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: var(--surface); border-radius: 16px; max-width: 800px; width: 90%; max-height: 85vh; overflow-y: auto; border: 1px solid var(--border); }
+  .modal-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .modal-body { padding: 20px; }
+  .close-btn { background: none; border: none; color: var(--text-dim); font-size: 24px; cursor: pointer; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab { padding: 8px 16px; border-radius: 8px; background: var(--surface2); color: var(--text-dim); cursor: pointer; font-size: 13px; border: none; }
+  .tab.active { background: var(--primary); color: #fff; }
+  .code-block { background: var(--bg); border-radius: 8px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; overflow-x: auto; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
+  .loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--text-dim); }
+  .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--primary-light); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 터미널 로그 */
+  .terminal { background: #0c0c0c; border-radius: 12px; border: 1px solid #333; overflow: hidden; }
+  .terminal-header { background: #1a1a2e; padding: 8px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #333; }
+  .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .terminal-dot.red { background: #ff5f56; } .terminal-dot.yellow { background: #ffbd2e; } .terminal-dot.green { background: #27c93f; }
+  .terminal-title { font-size: 12px; color: #888; margin-left: 8px; }
+  .terminal-body { padding: 16px; max-height: 500px; overflow-y: auto; font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace; font-size: 13px; line-height: 1.7; scroll-behavior: smooth; }
+  .log-line { padding: 2px 0; white-space: pre-wrap; word-break: break-word; }
+  .log-time { color: #666; }
+  .log-icon { margin: 0 4px; }
+  .log-msg { color: #e2e8f0; }
+  .log-detail { color: #64748b; padding-left: 90px; font-size: 12px; }
+  .log-data { color: #3b82f6; padding-left: 90px; font-size: 11px; }
+  .log-line.running .log-msg { color: #60a5fa; }
+  .log-line.done .log-msg { color: #34d399; }
+  .log-line.error .log-msg { color: #f87171; }
+  .log-line.warn .log-msg { color: #fbbf24; }
+  .terminal-footer { padding: 8px 16px; background: #1a1a2e; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #888; }
+  .progress-mini { height: 3px; background: #333; border-radius: 2px; flex: 1; margin: 0 12px; }
+  .progress-mini-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 2px; transition: width .5s; }
+
+  /* 주제관리 */
+  .topic-manage { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .topic-row { display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: var(--surface2); border-radius: 8px; }
+  .topic-row input { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; font-size: 13px; }
+  .topic-row input.w-cat { width: 80px; }
+  .topic-row input.w-title { flex: 1; min-width: 120px; }
+  .topic-row input.w-hook { flex: 1; min-width: 150px; }
+
+  /* 검수 패널 */
+  .review-item { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  .review-item h4 { font-size: 14px; margin-bottom: 8px; }
+  .review-item .preview { color: var(--text-dim); font-size: 13px; margin-bottom: 10px; }
+  .review-btns { display: flex; gap: 8px; margin-bottom: 8px; }
+  .review-btns button { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); cursor: pointer; font-size: 13px; }
+  .review-btns button.active-good { background: rgba(5,150,105,.2); border-color: #34d399; color: #34d399; }
+  .review-btns button.active-edit { background: rgba(217,119,6,.2); border-color: #fbbf24; color: #fbbf24; }
+  .review-btns button.active-reject { background: rgba(220,38,38,.2); border-color: #f87171; color: #f87171; }
+  .review-memo { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; font-size: 12px; margin-top: 6px; }
+  .naver-modal { background: var(--surface); border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; }
+  .naver-modal input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 14px; margin: 4px 0 12px; }
+
+  /* 상품 선택 바 */
+  .product-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; gap: 8px; align-items: center; overflow-x: auto; }
+  .product-tab { padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-dim); transition: .2s; white-space: nowrap; }
+  .product-tab:hover { border-color: var(--primary-light); color: var(--primary-light); }
+  .product-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .product-tab .day { font-size: 10px; color: inherit; opacity: 0.7; margin-left: 4px; }
+
+  @media (max-width: 768px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+    .topic-grid { grid-template-columns: 1fr; }
+    .topic-row { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📹 <span>Videoto</span> — 콘텐츠 자동 생성</h1>
+  <div class="header-actions">
+    <div class="kill-switch">
+      <span>시스템</span>
+      <div class="toggle" id="killSwitch" onclick="toggleKillSwitch()"></div>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="openGeneratePanel()">➕ 생성</button>
+    <button class="btn btn-outline btn-sm" onclick="openTopicManager()">📝 주제</button>
+    <button class="btn btn-outline btn-sm" onclick="loadDashboard()">🔄</button>
+  </div>
+</div>
+
+<!-- 상품 선택 바 -->
+<div class="product-bar" id="productBar">
+  <button class="product-tab active" onclick="selectProduct('conhome')">🏠 컨설턴트홈페이지 <span class="day">화</span></button>
+  <button class="product-tab" onclick="selectProduct('corphome')">🏢 기업홈페이지 <span class="day">월</span></button>
+  <button class="product-tab" onclick="selectProduct('innercircle')">🔵 이너서클멤버십 <span class="day">수</span></button>
+  <button class="product-tab" onclick="selectProduct('jarvia')">🟣 자비아멤버십 <span class="day">목</span></button>
+  <button class="product-tab" onclick="selectProduct('taxnavi')">📊 택스나비 <span class="day">금</span></button>
+</div>
+
+<div class="container">
+  <div class="grid" id="stats">
+    <div class="stat-card"><div class="label">총 콘텐츠</div><div class="value" id="statTotal">-</div><div class="sub">생성된 전체 콘텐츠</div></div>
+    <div class="stat-card"><div class="label">게시 완료</div><div class="value" id="statPublished" style="color:var(--success)">-</div><div class="sub">플랫폼 게시 완료</div></div>
+    <div class="stat-card"><div class="label">대기 중</div><div class="value" id="statPending" style="color:var(--warning)">-</div><div class="sub">게시 대기</div></div>
+    <div class="stat-card"><div class="label">다음 주제</div><div class="value" id="statNextTopic" style="font-size:16px;">-</div><div class="sub" id="statNextTopicSub">-</div></div>
+  </div>
+
+  <!-- 터미널 로그 패널 -->
+  <div id="progressPanel" style="display:none; margin-bottom:24px;">
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot red"></div><div class="terminal-dot yellow"></div><div class="terminal-dot green"></div>
+        <span class="terminal-title" id="terminalTitle">Videoto — 콘텐츠 생성 로그</span>
+      </div>
+      <div class="terminal-body" id="terminalBody"></div>
+      <div class="terminal-footer">
+        <span id="terminalStatus">대기</span>
+        <div class="progress-mini"><div class="progress-mini-fill" id="terminalProgress" style="width:0%"></div></div>
+        <span id="terminalElapsed">0초</span>
+        <button class="btn btn-sm btn-outline" onclick="downloadLog()" style="margin-left:8px;">📥 로그 저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 최근 콘텐츠 -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>📋 최근 콘텐츠</h2>
+      <span style="font-size:13px; color:var(--text-dim);">최근 20개</span>
+    </div>
+    <div class="panel-body" style="padding:0;">
+      <table>
+        <thead><tr><th>콘텐츠 ID</th><th>주제</th><th>카테고리</th><th>상태</th><th>점수</th><th>소요</th><th>생성일</th><th>액션</th></tr></thead>
+        <tbody id="contentTable"><tr><td colspan="8" class="loading"><div class="spinner"></div> 로딩 중...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 수동 생성 패널 -->
+  <div class="panel" id="generatePanel" style="display:none;">
+    <div class="panel-header">
+      <h2>➕ 수동 콘텐츠 생성 — <span id="generateProductName" style="color:var(--primary-light)">컨설턴트홈페이지</span></h2>
+      <button class="btn btn-sm btn-outline" onclick="document.getElementById('generatePanel').style.display='none'">닫기</button>
+    </div>
+    <div class="panel-body">
+      <p style="margin-bottom:12px; color:var(--text-dim);">생성할 주제를 선택하세요 (선택하지 않으면 순서대로 자동 선택)</p>
+      <div class="topic-grid" id="topicGrid"></div>
+      <div style="margin-top:12px; display:flex; gap:12px;">
+        <button class="btn btn-primary" onclick="runGenerate()" id="generateBtn">🚀 콘텐츠 생성 시작</button>
+        <span id="generateStatus" style="align-self:center; font-size:14px; color:var(--text-dim);"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 주제 관리 패널 -->
+  <div class="panel" id="topicPanel" style="display:none;">
+    <div class="panel-header">
+      <h2>📝 주제 관리</h2>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-sm btn-success" onclick="addTopic()">+ 주제 추가</button>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('topicPanel').style.display='none'">닫기</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div id="topicManager" class="topic-manage"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 상세 모달 -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">콘텐츠 상세</h2>
+      <button class="close-btn" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody">
+      <div class="loading"><div class="spinner"></div> 로딩 중...</div>
+    </div>
+  </div>
+</div>
+
+<!-- 검수 모달 -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <h2>✍️ 게시 전 검수 — <span id="reviewContentId"></span></h2>
+      <button class="close-btn" onclick="document.getElementById('reviewModal').classList.remove('active')">&times;</button>
+    </div>
+    <div class="modal-body" id="reviewBody">
+      <div class="loading"><div class="spinner"></div> 로딩 중...</div>
+    </div>
+  </div>
+</div>
+
+<!-- 네이버 성과 입력 모달 -->
+<div class="modal-overlay" id="naverModal">
+  <div class="naver-modal">
+    <h3 style="margin-bottom:16px;">📊 네이버 블로그 성과 입력</h3>
+    <input type="hidden" id="naverContentId">
+    <label style="font-size:13px; color:var(--text-dim);">방문수</label>
+    <input type="number" id="naverVisits" placeholder="0">
+    <label style="font-size:13px; color:var(--text-dim);">좋아요</label>
+    <input type="number" id="naverLikes" placeholder="0">
+    <label style="font-size:13px; color:var(--text-dim);">댓글수</label>
+    <input type="number" id="naverComments" placeholder="0">
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button class="btn btn-primary" onclick="submitNaverMetrics()">저장</button>
+      <button class="btn btn-outline" onclick="document.getElementById('naverModal').classList.remove('active')">취소</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'https://asia-northeast3-kfpc-company-support-project.cloudfunctions.net';
+
+const PRODUCTS = {
+  conhome:     { id: 'conhome',     name: '컨설턴트홈페이지', day: '화', icon: '🏠' },
+  corphome:    { id: 'corphome',    name: '기업홈페이지',     day: '월', icon: '🏢' },
+  innercircle: { id: 'innercircle', name: '이너서클멤버십',   day: '수', icon: '🔵' },
+  jarvia:      { id: 'jarvia',      name: '자비아멤버십',     day: '목', icon: '🟣' },
+  taxnavi:     { id: 'taxnavi',     name: '택스나비',         day: '금', icon: '📊' },
+};
+let currentProductId = 'conhome';
+
+let TOPICS = [];
+let selectedTopicIndex = null;
+let progressTimer = null;
+let generateStartTime = null;
+
+function selectProduct(productId) {
+  currentProductId = productId;
+  document.querySelectorAll('.product-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.product-tab[onclick*="${productId}"]`).classList.add('active');
+  loadTopics();
+  loadDashboard();
+  // 주제 관리 패널이 열려있으면 갱신
+  if (document.getElementById('topicPanel').style.display !== 'none') renderTopicManager();
+}
+
+// ════════════════════════════════════════
+// 초기화
+// ════════════════════════════════════════
+async function init() {
+  await loadTopics();
+  await loadDashboard();
+  checkActiveProgress();
+}
+
+// ════════════════════════════════════════
+// 주제 목록 API에서 로드
+// ════════════════════════════════════════
+async function loadTopics() {
+  try {
+    const res = await fetch(`${API_BASE}/topicList?productId=${currentProductId}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.topics.length > 0) {
+        TOPICS = data.topics;
+        return;
+      }
+    }
+  } catch (e) { console.log('주제 로드 실패, 기본값 사용'); }
+  // 폴백 (conhome만 기본값)
+  if (currentProductId === 'conhome') {
+    TOPICS = [
+      { id:'T01', category:'AI기능', title:'여러 AI를 한 번에', hook:'ChatGPT·Gemini·Claude·Perplexity 통합' },
+      { id:'T02', category:'AI기능', title:'AI 버튼 한 번으로 전문 분석', hook:'상속·증여·절세·은퇴 맞춤 분석' },
+      { id:'T03', category:'AI기능', title:'RAG 기반 자료 검색', hook:'업로드하면 AI가 즉시 답변' },
+      { id:'T04', category:'AI기능', title:'이중 답변 구조', hook:'고객엔 핵심만, 전문가엔 완전한 해답' },
+      { id:'T05', category:'관리', title:'내 업무 스타일에 맞춘 커스터마이징', hook:'메뉴·디자인 자유 설정' },
+      { id:'T06', category:'관리', title:'반응형 + 모바일 최적화', hook:'PC·모바일 완벽 지원' },
+      { id:'T07', category:'마케팅', title:'고객은 준비된 컨설턴트를 선택합니다', hook:'준비된 전문가 이미지 각인' },
+      { id:'T08', category:'마케팅', title:'당신의 시간은 더 가치 있는 일에', hook:'반복 업무는 AI에게' },
+      { id:'T09', category:'브랜딩', title:'전문성, 이제 홈페이지가 말합니다', hook:'전략이 담긴 나만의 홈페이지' },
+      { id:'T10', category:'브랜딩', title:'혼자 일하지 마세요', hook:'프리미엄 AI가 24시간 지원' },
+    ];
+  } else {
+    TOPICS = [];
+  }
+}
+
+// ════════════════════════════════════════
+// 대시보드
+// ════════════════════════════════════════
+async function loadDashboard() {
+  try {
+    const statusRes = await fetch(`${API_BASE}/systemStatus?productId=${currentProductId}`);
+    if (statusRes.ok) {
+      const data = await statusRes.json();
+      if (data.success) {
+        document.getElementById('killSwitch').className = data.system.killSwitch ? 'toggle off' : 'toggle';
+        const topicCount = data.system.topicCount || 0;
+        if (topicCount > 0) {
+          const nextIdx = data.system.currentTopicIndex % topicCount;
+          document.getElementById('statNextTopic').textContent = TOPICS[nextIdx]?.title || '-';
+          document.getElementById('statNextTopicSub').textContent = `#${nextIdx + 1} / ${topicCount}`;
+        } else {
+          document.getElementById('statNextTopic').textContent = '주제 없음';
+          document.getElementById('statNextTopicSub').textContent = '주제를 먼저 등록하세요';
+        }
+      }
+    }
+  } catch (e) { console.log('시스템 상태 로드 실패'); }
+
+  try {
+    const listRes = await fetch(`${API_BASE}/listContents?limit=20&productId=${currentProductId}`);
+    if (listRes.ok) {
+      const data = await listRes.json();
+      if (data.success) {
+        const total = data.contents.length;
+        const published = data.contents.filter(c => c.status === 'published').length;
+        const pending = total - published;
+        document.getElementById('statTotal').textContent = total;
+        document.getElementById('statPublished').textContent = published;
+        document.getElementById('statPending').textContent = pending;
+
+        const tbody = document.getElementById('contentTable');
+        const productName = PRODUCTS[currentProductId]?.name || currentProductId;
+        if (total === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:40px; color:var(--text-dim);">${productName}의 콘텐츠가 아직 없습니다. 수동 생성을 시작해보세요.</td></tr>`;
+        } else {
+          tbody.innerHTML = data.contents.map(c => {
+            const statusMap = {
+              'published': '<span class="badge badge-published">게시완료</span>',
+              'approved': '<span class="badge badge-approved">승인됨</span>',
+              'pending_review': '<span class="badge badge-pending">검수대기</span>',
+              'hold': '<span class="badge badge-hold">보류</span>',
+              'rejected': '<span class="badge badge-rejected">반려</span>',
+              'error': '<span class="badge badge-error">에러</span>',
+              'generated': '<span class="badge badge-generated">대기중</span>',
+            };
+            const status = statusMap[c.status] || `<span class="badge badge-generated">${c.status}</span>`;
+            const date = c.createdAt ? new Date(c.createdAt._seconds ? c.createdAt._seconds * 1000 : c.createdAt).toLocaleDateString('ko') : '-';
+            const score = c.metadata?.stages?.reviewed?.review?.totalScore || c.review?.totalScore || '-';
+            const elapsed = c.metadata?.elapsedSeconds ? `${c.metadata.elapsedSeconds}초` : '-';
+            const reviewBtn = (c.status === 'pending_review' || c.status === 'generated') ? `<button class="btn btn-sm btn-primary" onclick="openReview('${c.contentId}')">✍️ 검수</button> ` : '';
+            const naverBtn = c.status === 'published' ? `<button class="btn btn-sm btn-outline" onclick="openNaverInput('${c.contentId}')">📊</button> ` : '';
+            return `<tr>
+              <td><a href="#" onclick="showDetail('${c.contentId}');return false" style="color:var(--primary-light)">${c.contentId}</a></td>
+              <td>${c.topic?.title || '-'}</td>
+              <td>${c.topic?.category || '-'}</td>
+              <td>${status}</td>
+              <td>${score}</td>
+              <td>${elapsed}</td>
+              <td>${date}</td>
+              <td>${reviewBtn}<button class="btn btn-sm btn-outline" onclick="showDetail('${c.contentId}')">상세</button> <button class="btn btn-sm btn-outline" onclick="showLog('${c.contentId}')">📋</button> ${naverBtn}<button class="btn btn-sm btn-outline" onclick="downloadContent('${c.contentId}')">⬇️</button></td>
+            </tr>`;
+          }).join('');
+        }
+      }
+    }
+  } catch (e) { document.getElementById('contentTable').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:var(--text-dim);">API 연결 대기 중... 잠시 후 새로고침하세요.</td></tr>'; }
+}
+
+// ════════════════════════════════════════
+// 수동 생성
+// ════════════════════════════════════════
+function openGeneratePanel() {
+  const panel = document.getElementById('generatePanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('generateProductName').textContent = PRODUCTS[currentProductId]?.name || currentProductId;
+  renderTopicGrid();
+}
+
+function renderTopicGrid() {
+  if (TOPICS.length === 0) {
+    document.getElementById('topicGrid').innerHTML = `<p style="color:var(--text-dim); padding:20px;">이 상품의 주제가 아직 없습니다. 📝 주제 관리에서 추가하세요.</p>`;
+    return;
+  }
+  document.getElementById('topicGrid').innerHTML = TOPICS.map((t, i) => `
+    <div class="topic-item ${selectedTopicIndex === i ? 'selected' : ''}" onclick="selectTopic(${i})">
+      <div class="cat">${t.category}</div>
+      <strong>${t.title}</strong>
+    </div>
+  `).join('');
+}
+
+function selectTopic(idx) {
+  selectedTopicIndex = selectedTopicIndex === idx ? null : idx;
+  renderTopicGrid();
+}
+
+async function runGenerate() {
+  const btn = document.getElementById('generateBtn');
+  const status = document.getElementById('generateStatus');
+  btn.disabled = true;
+  btn.textContent = '⏳ 생성 중...';
+  status.textContent = 'AI 4개가 협업 중입니다. 약 3~4분 소요...';
+  generateStartTime = Date.now();
+
+  // 진행 상태 패널 표시
+  showProgressPanel();
+
+  const url = selectedTopicIndex !== null
+    ? `${API_BASE}/manualGenerate?productId=${currentProductId}&topicIndex=${selectedTopicIndex}`
+    : `${API_BASE}/manualGenerate?productId=${currentProductId}`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    stopProgressPolling();
+    if (data.success) {
+      status.innerHTML = `✅ <strong>${data.contentId}</strong> 생성 완료! (${data.elapsed || '-'}초, ${data.score || '-'}점)`;
+      updateProgressComplete(data);
+      await loadDashboard();
+    } else {
+      status.textContent = `❌ 실패: ${data.error}`;
+      updateProgressError(data.error);
+    }
+  } catch (e) {
+    stopProgressPolling();
+    status.textContent = `❌ 연결 실패: ${e.message}`;
+    updateProgressError(e.message);
+  }
+  btn.disabled = false;
+  btn.textContent = '🚀 콘텐츠 생성 시작';
+}
+
+// ════════════════════════════════════════
+// 터미널 로그 시스템
+// ════════════════════════════════════════
+let lastLogCount = 0;
+let currentContentId = null;
+
+function showProgressPanel() {
+  document.getElementById('progressPanel').style.display = 'block';
+  document.getElementById('terminalBody').innerHTML = '';
+  document.getElementById('terminalStatus').textContent = '서버 연결 대기 중...';
+  document.getElementById('terminalProgress').style.width = '0%';
+  document.getElementById('terminalElapsed').textContent = '0초';
+  document.getElementById('terminalTitle').textContent = 'Videoto — 서버 시작 대기 중...';
+  lastLogCount = 0;
+  currentContentId = null;
+  generateStartTime = Date.now();
+  appendLogLine({ time: new Date().toISOString(), icon: '⏳', message: 'AI 서버에 생성 요청 전송... 서버 시작까지 5~10초 소요', step: 'init' });
+  startProgressPolling();
+}
+
+function appendLogLine(entry) {
+  const body = document.getElementById('terminalBody');
+  const time = entry.time ? new Date(entry.time).toLocaleTimeString('ko') : '';
+  const cls = entry.step === 'complete' ? 'done' : entry.icon?.includes('✅') ? 'done' : entry.icon?.includes('❌') ? 'error' : entry.icon?.includes('⚠️') ? 'warn' : 'running';
+
+  let html = `<div class="log-line ${cls}">`;
+  html += `<span class="log-time">[${time}]</span> `;
+  html += `<span class="log-icon">${entry.icon || ''}</span> `;
+  html += `<span class="log-msg">${entry.message || ''}</span>`;
+  html += `</div>`;
+
+  if (entry.detail) {
+    const detailLines = entry.detail.split('\n');
+    detailLines.forEach(line => {
+      html += `<div class="log-detail">→ ${line}</div>`;
+    });
+  }
+
+  body.innerHTML += html;
+  body.scrollTop = body.scrollHeight;
+}
+
+function startProgressPolling() {
+  stopProgressPolling();
+  let waitingForServer = true; // 서버가 아직 시작 안 했을 수 있음
+  let serverFoundAt = null;
+
+  progressTimer = setInterval(async () => {
+    try {
+      const url = currentContentId
+        ? `${API_BASE}/generateProgress?id=${currentContentId}`
+        : `${API_BASE}/generateProgress`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+
+        // 서버가 아직 progress를 안 만들었으면 대기
+        if (!data.success || !data.progress) {
+          if (waitingForServer) {
+            const waited = Math.round((Date.now() - generateStartTime) / 1000);
+            document.getElementById('terminalStatus').textContent = `서버 연결 대기 중... (${waited}초)`;
+            if (waited > 300) { // 5분 넘으면 타임아웃
+              appendLogLine({ time: new Date().toISOString(), icon: '❌', message: '서버 응답 타임아웃 (5분)', step: 'error' });
+              stopProgressPolling();
+            }
+          }
+          return;
+        }
+
+        const p = data.progress;
+
+        // 서버가 진행 중인 작업을 반환했으면 추적 시작
+        if (waitingForServer && p.contentId) {
+          waitingForServer = false;
+          serverFoundAt = Date.now();
+          currentContentId = p.contentId;
+          appendLogLine({ time: new Date().toISOString(), icon: '🔗', message: `서버 연결됨 — ${p.contentId}`, step: 'init' });
+        }
+
+        if (p.contentId) currentContentId = p.contentId;
+        document.getElementById('terminalTitle').textContent = `Videoto — ${p.topic?.title || '콘텐츠 생성'} (${p.contentId || ''})`;
+
+        // 새 로그만 추가
+        const logs = p.logs || [];
+        if (logs.length > lastLogCount) {
+          for (let i = lastLogCount; i < logs.length; i++) {
+            appendLogLine(logs[i]);
+          }
+          lastLogCount = logs.length;
+        }
+
+        // 프로그레스바
+        const total = 8;
+        const done = logs.filter(l => l.icon === '✅' || l.icon === '⏭️' || l.icon === '🎉').length;
+        const pct = Math.min(100, Math.round((done / total) * 100));
+        document.getElementById('terminalProgress').style.width = pct + '%';
+
+        // 상태 판단 — 서버 찾은 후 10초 이내에는 done 무시 (중간 기록일 수 있음)
+        if (p.currentStatus === 'done') {
+          const sinceFund = serverFoundAt ? (Date.now() - serverFoundAt) / 1000 : 999;
+          if (sinceFund > 10) {
+            document.getElementById('terminalStatus').textContent = '✅ 완료!';
+            stopProgressPolling();
+          }
+        } else {
+          document.getElementById('terminalStatus').textContent = p.currentMessage || '진행 중...';
+        }
+      }
+    } catch (e) { /* 네트워크 오류 무시 — 다음 폴링에서 재시도 */ }
+
+    // 경과 시간
+    if (generateStartTime) {
+      const elapsed = Math.round((Date.now() - generateStartTime) / 1000);
+      document.getElementById('terminalElapsed').textContent = `${elapsed}초`;
+    }
+  }, 2000);
+}
+
+function stopProgressPolling() {
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+}
+
+function updateProgressComplete(data) {
+  document.getElementById('terminalStatus').textContent = '✅ 완료!';
+  document.getElementById('terminalProgress').style.width = '100%';
+  const elapsed = data.elapsed || Math.round((Date.now() - generateStartTime) / 1000);
+  document.getElementById('terminalElapsed').textContent = `${elapsed}초 (${data.score || '-'}점)`;
+}
+
+function updateProgressError(error) {
+  document.getElementById('terminalStatus').textContent = '❌ 실패';
+  appendLogLine({ time: new Date().toISOString(), icon: '❌', message: `에러: ${error}`, step: 'error' });
+}
+
+async function checkActiveProgress() {
+  try {
+    const res = await fetch(`${API_BASE}/generateProgress`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.progress && data.progress.currentStatus === 'running') {
+        currentContentId = data.progress.contentId || data.progress.id;
+        generateStartTime = new Date(data.progress.startedAt || data.progress.updatedAt).getTime();
+        document.getElementById('progressPanel').style.display = 'block';
+        // 기존 로그 전부 표시
+        (data.progress.logs || []).forEach(entry => appendLogLine(entry));
+        lastLogCount = (data.progress.logs || []).length;
+        startProgressPolling();
+      }
+    }
+  } catch (e) { /* 무시 */ }
+}
+
+function downloadLog() {
+  const body = document.getElementById('terminalBody');
+  const text = body.innerText;
+  const blob = new Blob([text], { type: 'text/plain; charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `videoto_log_${currentContentId || 'unknown'}.txt`;
+  a.click();
+}
+
+// 콘텐츠 상세에서 로그 보기
+async function showLog(contentId) {
+  try {
+    const res = await fetch(`${API_BASE}/generateProgress?id=${contentId}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.progress) {
+        currentContentId = contentId;
+        document.getElementById('progressPanel').style.display = 'block';
+        document.getElementById('terminalBody').innerHTML = '';
+        document.getElementById('terminalTitle').textContent = `Videoto — ${data.progress.topic?.title || ''} (${contentId})`;
+        lastLogCount = 0;
+        (data.progress.logs || []).forEach(entry => appendLogLine(entry));
+        lastLogCount = (data.progress.logs || []).length;
+        const summary = data.progress.summary;
+        if (summary) {
+          document.getElementById('terminalStatus').textContent = '완료';
+          document.getElementById('terminalProgress').style.width = '100%';
+          document.getElementById('terminalElapsed').textContent = `${summary.elapsed}초 (${summary.score}점)`;
+        }
+        document.getElementById('progressPanel').scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  } catch (e) { alert('로그 로드 실패: ' + e.message); }
+}
+
+// ════════════════════════════════════════
+// 주제 관리
+// ════════════════════════════════════════
+function openTopicManager() {
+  const panel = document.getElementById('topicPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  renderTopicManager();
+}
+
+function renderTopicManager() {
+  document.getElementById('topicManager').innerHTML = TOPICS.map((t, i) => `
+    <div class="topic-row" id="topicRow_${i}">
+      <span style="color:var(--text-dim); font-size:12px; width:30px;">${t.id}</span>
+      <input class="w-cat" value="${t.category}" placeholder="카테고리" id="cat_${i}">
+      <input class="w-title" value="${t.title}" placeholder="주제 제목" id="title_${i}">
+      <input class="w-hook" value="${t.hook || ''}" placeholder="후킹 포인트" id="hook_${i}">
+      <button class="btn btn-sm btn-primary" onclick="saveTopic(${i})">저장</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteTopic('${t.id}', ${i})">삭제</button>
+    </div>
+  `).join('') + `
+    <div class="topic-row" id="topicRow_new" style="border:2px dashed var(--primary); background:rgba(26,86,219,.08);">
+      <span style="color:var(--primary-light); font-size:12px; width:30px;">NEW</span>
+      <input class="w-cat" value="" placeholder="카테고리" id="cat_new">
+      <input class="w-title" value="" placeholder="주제 제목" id="title_new">
+      <input class="w-hook" value="" placeholder="후킹 포인트" id="hook_new">
+      <button class="btn btn-sm btn-success" onclick="saveNewTopic()">추가</button>
+    </div>
+  `;
+}
+
+async function saveTopic(idx) {
+  const topic = TOPICS[idx];
+  const category = document.getElementById(`cat_${idx}`).value.trim();
+  const title = document.getElementById(`title_${idx}`).value.trim();
+  const hook = document.getElementById(`hook_${idx}`).value.trim();
+  if (!title) { alert('주제 제목을 입력하세요.'); return; }
+  const btn = document.querySelector(`#topicRow_${idx} .btn-primary`);
+  btn.textContent = '저장 중...'; btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/topicUpdate`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'edit', topic: { id: topic.id, category, title, hook }, productId: currentProductId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      TOPICS[idx] = { ...topic, category, title, hook };
+      btn.textContent = '✅ 완료'; setTimeout(() => { btn.textContent = '저장'; btn.disabled = false; }, 1500);
+      renderTopicGrid();
+    } else { alert('저장 실패: ' + (data.error || '')); btn.textContent = '저장'; btn.disabled = false; }
+  } catch (e) { alert('저장 실패: ' + e.message); btn.textContent = '저장'; btn.disabled = false; }
+}
+
+async function saveNewTopic() {
+  const category = document.getElementById('cat_new').value.trim();
+  const title = document.getElementById('title_new').value.trim();
+  const hook = document.getElementById('hook_new').value.trim();
+  if (!title) { alert('주제 제목을 입력하세요.'); return; }
+  if (!category) { alert('카테고리를 입력하세요.'); return; }
+  const btn = document.querySelector('#topicRow_new .btn-success');
+  btn.textContent = '추가 중...'; btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/topicUpdate`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add', topic: { category, title, hook }, productId: currentProductId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await loadTopics();
+      renderTopicManager();
+      renderTopicGrid();
+    } else { alert('추가 실패: ' + (data.error || '')); btn.textContent = '추가'; btn.disabled = false; }
+  } catch (e) { alert('추가 실패: ' + e.message); btn.textContent = '추가'; btn.disabled = false; }
+}
+
+function addTopic() {
+  // 주제 관리 패널 열고 NEW 행으로 스크롤
+  document.getElementById('topicPanel').style.display = 'block';
+  renderTopicManager();
+  setTimeout(() => { document.getElementById('cat_new')?.focus(); }, 200);
+}
+
+async function deleteTopic(topicId, idx) {
+  if (!confirm(`"${TOPICS[idx].title}" 주제를 삭제하시겠습니까?`)) return;
+  const btn = document.querySelector(`#topicRow_${idx} .btn-danger`);
+  btn.textContent = '삭제 중...'; btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/topicUpdate`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', topic: { id: topicId }, productId: currentProductId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await loadTopics();
+      renderTopicManager();
+      renderTopicGrid();
+    } else { alert('삭제 실패'); btn.textContent = '삭제'; btn.disabled = false; }
+  } catch (e) { alert('삭제 실패: ' + e.message); btn.textContent = '삭제'; btn.disabled = false; }
+}
+
+// ════════════════════════════════════════
+// 상세 보기
+// ════════════════════════════════════════
+async function showDetail(contentId) {
+  const modal = document.getElementById('detailModal');
+  const body = document.getElementById('modalBody');
+  modal.classList.add('active');
+  document.getElementById('modalTitle').textContent = contentId;
+  body.innerHTML = '<div class="loading"><div class="spinner"></div> 로딩 중...</div>';
+  try {
+    const res = await fetch(`${API_BASE}/getContent?id=${contentId}`);
+    const data = await res.json();
+    if (data.success && data.content) {
+      const c = data.content;
+      const final = c.stages?.final || c.finalContent || {};
+      const review = c.stages?.reviewed?.review || {};
+      body.innerHTML = `
+        <div class="tabs">
+          <button class="tab active" onclick="showTab('shorts',this)">🎬 쇼츠</button>
+          <button class="tab" onclick="showTab('carousel',this)">📰 카드뉴스</button>
+          <button class="tab" onclick="showTab('blog',this)">📝 블로그</button>
+          <button class="tab" onclick="showTab('log',this)">📋 생성 로그</button>
+          <button class="tab" onclick="showTab('meta',this)">📊 메타/AI학습</button>
+          <button class="tab" onclick="showTab('perf',this)">📈 성과</button>
+        </div>
+        <div id="tab_shorts">${renderShorts(final.shorts)}</div>
+        <div id="tab_carousel" style="display:none">${renderCarousel(final.carousel)}</div>
+        <div id="tab_blog" style="display:none">${renderBlog(final.blog)}</div>
+        <div id="tab_log" style="display:none"><div id="modalLogArea" style="background:#0c0c0c; border-radius:8px; padding:16px; max-height:400px; overflow-y:auto; font-family:monospace; font-size:13px; line-height:1.7; color:#e2e8f0;">로그 로드 중...</div>
+          <button class="btn btn-sm btn-outline" onclick="downloadLogById('${contentId}')" style="margin-top:8px;">📥 로그 파일 저장</button></div>
+        <div id="tab_meta" style="display:none">${renderMeta(c, review)}</div>
+        <div id="tab_perf" style="display:none">성과 로딩 중...</div>
+      `;
+      // 모달 내 로그 로드
+      loadModalLog(contentId);
+      loadPerfTab(contentId);
+    } else { body.innerHTML = '<p>콘텐츠를 찾을 수 없습니다.</p>'; }
+  } catch (e) { body.innerHTML = `<p>로드 실패: ${e.message}</p>`; }
+}
+
+function showTab(name, el) {
+  document.querySelectorAll('[id^="tab_"]').forEach(t => t.style.display = 'none');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab_' + name).style.display = 'block';
+  el.classList.add('active');
+}
+
+function renderShorts(s) {
+  if (!s) return '<p>쇼츠 데이터 없음</p>';
+  const scenes = (s.scenes || []).map(sc => `<div style="padding:8px 0; border-bottom:1px solid var(--border);">
+    <strong>${sc.time}</strong> [${sc.type}]<br>
+    <span style="color:#fbbf24;">자막: ${sc.subtitle || '-'}</span><br>
+    <span style="color:var(--text-dim);">나레이션: ${sc.narration || '-'}</span><br>
+    <span style="font-size:12px; color:#64748b;">비주얼: ${sc.visual || '-'}</span>
+  </div>`).join('');
+  return `<h3 style="margin-bottom:12px;">${s.title || '제목 없음'}</h3>
+    ${s.description ? `<p style="color:var(--text-dim); margin-bottom:12px;">${s.description}</p>` : ''}
+    ${s.thumbnailText ? `<p>썸네일: <strong>${s.thumbnailText}</strong></p>` : ''}
+    <div style="margin-top:12px;">${scenes}</div>
+    ${s.hashtags ? `<p style="margin-top:12px; color:var(--primary-light);">${s.hashtags.join(' ')}</p>` : ''}`;
+}
+
+function renderCarousel(c) {
+  if (!c) return '<p>카드뉴스 데이터 없음</p>';
+  const slides = (c.slides || []).map(sl => `<div style="padding:12px; margin:8px 0; background:${sl.bgColor || 'var(--bg)'}; border-radius:8px;">
+    <div style="font-size:11px; color:var(--text-dim);">${sl.type || ''} — ${sl.page}장</div>
+    <div style="font-size:16px; font-weight:700; margin:4px 0;">${sl.headline || ''}</div>
+    <div style="color:var(--text-dim);">${sl.body || ''}</div>
+  </div>`).join('');
+  return `<h3 style="margin-bottom:12px;">${c.title || ''}</h3>
+    ${c.caption ? `<p style="color:var(--text-dim); margin-bottom:12px;">${c.caption}</p>` : ''}
+    ${slides}`;
+}
+
+function renderBlog(b) {
+  if (!b) return '<p>블로그 데이터 없음</p>';
+  return `<h3 style="margin-bottom:8px;">${b.title || ''}</h3>
+    <p style="color:var(--text-dim); margin-bottom:16px;">${b.metaDescription || ''}</p>
+    <div style="background:var(--bg); padding:16px; border-radius:8px; line-height:1.8;">${b.htmlBody || b.body || ''}</div>
+    ${b.tags ? `<p style="margin-top:12px; color:var(--primary-light);">${b.tags.map(t => '#'+t).join(' ')}</p>` : ''}`;
+}
+
+function renderMeta(c, review) {
+  return `<div class="code-block">${JSON.stringify({
+    contentId: c.contentId, topic: c.topic, metadata: c.metadata,
+    review: review, publishSchedule: c.stages?.final?.publishSchedule
+  }, null, 2)}</div>`;
+}
+
+function closeModal() { document.getElementById('detailModal').classList.remove('active'); }
+
+// ════════════════════════════════════════
+// 담당자 검수
+// ════════════════════════════════════════
+let reviewData = { shorts: {}, carousel: {}, blog: {} };
+
+async function openReview(contentId) {
+  const modal = document.getElementById('reviewModal');
+  const body = document.getElementById('reviewBody');
+  document.getElementById('reviewContentId').textContent = contentId;
+  modal.classList.add('active');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div> 콘텐츠 로딩 중...</div>';
+  reviewData = { shorts: {}, carousel: {}, blog: {} };
+
+  try {
+    const res = await fetch(`${API_BASE}/getContent?id=${contentId}`);
+    const data = await res.json();
+    if (!data.success || !data.content) { body.innerHTML = '<p>콘텐츠를 찾을 수 없습니다.</p>'; return; }
+    const c = data.content;
+    const final = c.stages?.final || c.finalContent || {};
+    const shorts = final.shorts || {};
+    const carousel = final.carousel || {};
+    const blog = final.blog || {};
+
+    body.innerHTML = `
+      <div class="review-item">
+        <h4>🎬 쇼츠</h4>
+        <div class="preview">
+          <strong>제목:</strong> ${shorts.title || '-'}<br>
+          <strong>후킹:</strong> ${shorts.scenes?.[0]?.subtitle || '-'}<br>
+          <strong>씬:</strong> ${shorts.scenes?.length || 0}개
+        </div>
+        <div class="review-btns" id="reviewBtns_shorts">
+          <button onclick="setRating('shorts','good',this)">👍 좋음</button>
+          <button onclick="setRating('shorts','edit',this)">✏️ 수정필요</button>
+          <button onclick="setRating('shorts','reject',this)">👎 반려</button>
+        </div>
+        <input class="review-memo" id="reviewMemo_shorts" placeholder="수정 메모 (선택사항)">
+      </div>
+
+      <div class="review-item">
+        <h4>📰 카드뉴스</h4>
+        <div class="preview">
+          <strong>표지:</strong> ${carousel.slides?.[0]?.headline || '-'}<br>
+          <strong>장수:</strong> ${carousel.slides?.length || 0}장
+        </div>
+        <div class="review-btns" id="reviewBtns_carousel">
+          <button onclick="setRating('carousel','good',this)">👍 좋음</button>
+          <button onclick="setRating('carousel','edit',this)">✏️ 수정필요</button>
+          <button onclick="setRating('carousel','reject',this)">👎 반려</button>
+        </div>
+        <input class="review-memo" id="reviewMemo_carousel" placeholder="수정 메모 (선택사항)">
+      </div>
+
+      <div class="review-item">
+        <h4>📝 블로그</h4>
+        <div class="preview">
+          <strong>제목:</strong> ${blog.title || '-'}<br>
+          <strong>분량:</strong> ${(blog.htmlBody || blog.body || '').replace(/<[^>]+>/g, '').length}자
+        </div>
+        <div class="review-btns" id="reviewBtns_blog">
+          <button onclick="setRating('blog','good',this)">👍 좋음</button>
+          <button onclick="setRating('blog','edit',this)">✏️ 수정필요</button>
+          <button onclick="setRating('blog','reject',this)">👎 반려</button>
+        </div>
+        <input class="review-memo" id="reviewMemo_blog" placeholder="수정 메모 (선택사항)">
+      </div>
+
+      <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
+        <label style="font-size:13px; color:var(--text-dim);">종합 메모 (선택)</label>
+        <input class="review-memo" id="reviewMemoGeneral" placeholder="전체적인 피드백" style="margin-top:4px;">
+        <div style="display:flex; gap:10px; margin-top:16px;">
+          <button class="btn btn-primary" onclick="submitReview('${contentId}', 'approved')">✅ 전체 승인 → 게시</button>
+          <button class="btn btn-outline" onclick="submitReview('${contentId}', 'hold')">⏸️ 보류</button>
+          <button class="btn btn-danger" onclick="submitReview('${contentId}', 'regenerate')">🔄 AI 재생성</button>
+        </div>
+      </div>
+    `;
+  } catch (e) { body.innerHTML = `<p>로드 실패: ${e.message}</p>`; }
+}
+
+function setRating(type, rating, btn) {
+  reviewData[type].rating = rating;
+  const btns = btn.parentElement.querySelectorAll('button');
+  btns.forEach(b => b.className = '');
+  if (rating === 'good') btn.className = 'active-good';
+  else if (rating === 'edit') btn.className = 'active-edit';
+  else btn.className = 'active-reject';
+}
+
+async function submitReview(contentId, decision) {
+  const shorts = { rating: reviewData.shorts.rating || 'good', memo: document.getElementById('reviewMemo_shorts')?.value || '' };
+  const carousel = { rating: reviewData.carousel.rating || 'good', memo: document.getElementById('reviewMemo_carousel')?.value || '' };
+  const blog = { rating: reviewData.blog.rating || 'good', memo: document.getElementById('reviewMemo_blog')?.value || '' };
+  const memo = document.getElementById('reviewMemoGeneral')?.value || '';
+
+  try {
+    const res = await fetch(`${API_BASE}/humanReview`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentId, shorts, carousel, blog, decision, memo })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const labels = { approved: '승인 완료! 10:00에 자동 게시됩니다.', hold: '보류 처리되었습니다.', regenerate: '반려 처리되었습니다.' };
+      alert(`✅ ${labels[decision] || '처리 완료'}`);
+      document.getElementById('reviewModal').classList.remove('active');
+      await loadDashboard();
+    } else { alert('처리 실패: ' + (data.error || '')); }
+  } catch (e) { alert('서버 연결 실패: ' + e.message); }
+}
+
+// ════════════════════════════════════════
+// 네이버 성과 수동 입력
+// ════════════════════════════════════════
+function openNaverInput(contentId) {
+  document.getElementById('naverContentId').value = contentId;
+  document.getElementById('naverVisits').value = '';
+  document.getElementById('naverLikes').value = '';
+  document.getElementById('naverComments').value = '';
+  document.getElementById('naverModal').classList.add('active');
+}
+
+async function submitNaverMetrics() {
+  const contentId = document.getElementById('naverContentId').value;
+  const visits = parseInt(document.getElementById('naverVisits').value) || 0;
+  const likes = parseInt(document.getElementById('naverLikes').value) || 0;
+  const comments = parseInt(document.getElementById('naverComments').value) || 0;
+
+  try {
+    const res = await fetch(`${API_BASE}/naverMetrics`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentId, visits, likes, comments })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert(`✅ 네이버 성과 저장 완료 (종합: ${data.engagementScore}점)`);
+      document.getElementById('naverModal').classList.remove('active');
+    } else { alert('저장 실패: ' + (data.error || '')); }
+  } catch (e) { alert('서버 연결 실패: ' + e.message); }
+}
+
+async function loadModalLog(contentId) {
+  try {
+    const res = await fetch(`${API_BASE}/generateProgress?id=${contentId}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.progress?.logs) {
+        const area = document.getElementById('modalLogArea');
+        area.innerHTML = data.progress.logs.map(entry => {
+          const time = entry.time ? new Date(entry.time).toLocaleTimeString('ko') : '';
+          const color = entry.icon?.includes('✅') || entry.icon === '🎉' ? '#34d399' : entry.icon?.includes('❌') ? '#f87171' : entry.icon?.includes('⚠️') ? '#fbbf24' : '#60a5fa';
+          let html = `<div style="padding:2px 0;"><span style="color:#666;">[${time}]</span> <span>${entry.icon||''}</span> <span style="color:${color};">${entry.message||''}</span></div>`;
+          if (entry.detail) {
+            entry.detail.split('\n').forEach(line => {
+              html += `<div style="padding-left:80px; color:#64748b; font-size:12px;">→ ${line}</div>`;
+            });
+          }
+          return html;
+        }).join('');
+        // AI 학습 데이터
+        if (data.progress.aiLearning) {
+          area.innerHTML += `<div style="margin-top:12px; padding-top:12px; border-top:1px solid #333; color:#3b82f6; font-size:11px;">[AI 학습 데이터] 후킹패턴: ${data.progress.aiLearning.shortsHookPattern || '-'} | 점수: ${data.progress.aiLearning.reviewScore || '-'} | 이슈: ${data.progress.aiLearning.reviewIssues?.length || 0}건</div>`;
+        }
+      } else {
+        document.getElementById('modalLogArea').innerHTML = '<span style="color:#666;">이 콘텐츠의 생성 로그가 없습니다.</span>';
+      }
+    }
+  } catch (e) { document.getElementById('modalLogArea').innerHTML = `<span style="color:#f87171;">로그 로드 실패: ${e.message}</span>`; }
+}
+
+async function downloadLogById(contentId) {
+  try {
+    const res = await fetch(`${API_BASE}/generateProgress?id=${contentId}`);
+    if (res.ok) {
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data.progress, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = `videoto_log_${contentId}.json`; a.click();
+    }
+  } catch (e) { alert('다운로드 실패: ' + e.message); }
+}
+
+async function loadPerfTab(contentId) {
+  const tab = document.getElementById('tab_perf');
+  if (!tab) return;
+  try {
+    const res = await fetch(`${API_BASE}/getContent?id=${contentId}`);
+    const data = await res.json();
+    const perf = data.content?.performance || {};
+    const hr = data.content?.humanReview || {};
+
+    let html = '';
+
+    // 담당자 검수 결과
+    if (hr.reviewer) {
+      html += `<h3 style="margin-bottom:12px;">👤 담당자 검수</h3>
+        <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+          <tr><th style="padding:6px 10px; text-align:left; border-bottom:1px solid var(--border); font-size:12px; color:var(--text-dim);">항목</th><th style="padding:6px 10px; text-align:left; border-bottom:1px solid var(--border); font-size:12px; color:var(--text-dim);">판정</th><th style="padding:6px 10px; text-align:left; border-bottom:1px solid var(--border); font-size:12px; color:var(--text-dim);">메모</th></tr>
+          <tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">쇼츠</td><td>${hr.shorts?.rating || '-'}</td><td>${hr.shorts?.memo || '-'}</td></tr>
+          <tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">카드뉴스</td><td>${hr.carousel?.rating || '-'}</td><td>${hr.carousel?.memo || '-'}</td></tr>
+          <tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">블로그</td><td>${hr.blog?.rating || '-'}</td><td>${hr.blog?.memo || '-'}</td></tr>
+        </table>
+        <p style="font-size:12px; color:var(--text-dim);">종합: ${hr.decision || '-'} | 검수자: ${hr.reviewer} | ${hr.reviewedAt ? new Date(hr.reviewedAt).toLocaleString('ko') : '-'}</p>
+        <hr style="border:none; border-top:1px solid var(--border); margin:16px 0;">`;
+    }
+
+    // 성과 데이터
+    if (perf.engagementScore > 0) {
+      html += `<h3>📈 플랫폼 성과 (종합: ${perf.engagementScore}점)</h3>
+        <table style="width:100%; border-collapse:collapse;">
+          <tr><th style="padding:6px 10px; text-align:left; border-bottom:1px solid var(--border); font-size:12px;">플랫폼</th><th style="padding:6px 10px; text-align:left; border-bottom:1px solid var(--border); font-size:12px;">주요 지표</th></tr>
+          ${perf.youtube ? `<tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">YouTube</td><td>조회수 ${perf.youtube.views || 0} / 좋아요 ${perf.youtube.likes || 0} / 댓글 ${perf.youtube.comments || 0}</td></tr>` : ''}
+          ${perf.instagram ? `<tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">Instagram</td><td>도달 ${perf.instagram.reach || 0} / 저장 ${perf.instagram.saves || 0} / 공유 ${perf.instagram.shares || 0}</td></tr>` : ''}
+          ${perf.tistory ? `<tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">Tistory</td><td>방문 ${perf.tistory.visits || 0} / 댓글 ${perf.tistory.comments || 0}</td></tr>` : ''}
+          ${perf.naver ? `<tr><td style="padding:6px 10px; border-bottom:1px solid rgba(71,85,105,.3);">네이버</td><td>방문 ${perf.naver.visits || 0} / 좋아요 ${perf.naver.likes || 0} / 댓글 ${perf.naver.comments || 0}</td></tr>` : ''}
+        </table>
+        <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">수집일: ${perf.collectedAt || '-'}</p>`;
+    } else {
+      html += '<p style="color:var(--text-dim);">성과 데이터가 아직 수집되지 않았습니다. 게시 후 월요일에 자동 수집됩니다.</p>';
+    }
+
+    if (!hr.reviewer && !(perf.engagementScore > 0)) {
+      html = '<p style="color:var(--text-dim);">검수 및 성과 데이터가 없습니다.</p>';
+    }
+
+    tab.innerHTML = html;
+  } catch (e) { tab.innerHTML = `<p style="color:#f87171;">로드 실패: ${e.message}</p>`; }
+}
+
+async function downloadContent(contentId) {
+  try {
+    const res = await fetch(`${API_BASE}/getContent?id=${contentId}`);
+    const data = await res.json();
+    if (!data.success || !data.content) { alert('콘텐츠를 찾을 수 없습니다.'); return; }
+    const c = data.content;
+    const final = c.stages?.final || c.finalContent || {};
+    const shorts = final.shorts || {};
+    const carousel = final.carousel || {};
+    const blog = final.blog || {};
+    const review = c.stages?.reviewed?.review || {};
+    const meta = c.metadata || {};
+    const topic = c.topic || {};
+    const hr = c.humanReview || {};
+
+    // 성과 데이터 로드
+    let perf = {};
+    try {
+      const perfRes = await fetch(`${API_BASE}/getContent?id=${contentId}`);
+      // performance 컬렉션은 별도 API가 없으므로 content에 포함된 것 사용
+      perf = c.performance || {};
+    } catch (e) { /* 무시 */ }
+
+    const html = `
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>${contentId}</title>
+<style>
+  body { font-family: '맑은 고딕', 'Malgun Gothic', sans-serif; line-height: 1.8; color: #222; max-width: 800px; margin: 0 auto; padding: 40px; }
+  h1 { font-size: 22pt; color: #1a56db; border-bottom: 3px solid #1a56db; padding-bottom: 8px; margin-bottom: 20px; }
+  h2 { font-size: 16pt; color: #1e293b; border-left: 4px solid #1a56db; padding-left: 12px; margin-top: 30px; margin-bottom: 12px; }
+  h3 { font-size: 13pt; color: #334155; margin-top: 20px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th { background: #f1f5f9; padding: 8px 12px; text-align: left; border: 1px solid #cbd5e1; font-size: 10pt; color: #475569; }
+  td { padding: 8px 12px; border: 1px solid #cbd5e1; font-size: 10pt; vertical-align: top; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 9pt; font-weight: bold; }
+  .badge-score { background: #dbeafe; color: #1d4ed8; }
+  .scene-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin: 6px 0; }
+  .slide-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px; margin: 6px 0; }
+  .meta-info { background: #fefce8; border: 1px solid #fde68a; padding: 12px; border-radius: 6px; margin: 12px 0; font-size: 10pt; }
+  .hashtag { color: #2563eb; font-size: 10pt; }
+  .divider { border: none; border-top: 2px dashed #e2e8f0; margin: 30px 0; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 9pt; color: #94a3b8; text-align: center; }
+</style></head>
+<body>
+<h1>📹 Videoto 콘텐츠 리포트</h1>
+
+<div class="meta-info">
+  <strong>콘텐츠 ID:</strong> ${contentId} &nbsp;&nbsp;|&nbsp;&nbsp;
+  <strong>주제:</strong> ${topic.title || '-'} (${topic.category || '-'}) &nbsp;&nbsp;|&nbsp;&nbsp;
+  <strong>생성일:</strong> ${meta.generatedAt ? new Date(meta.generatedAt).toLocaleString('ko') : '-'}<br>
+  <strong>소요시간:</strong> ${meta.elapsedSeconds || '-'}초 &nbsp;&nbsp;|&nbsp;&nbsp;
+  <strong>검수점수:</strong> <span class="badge badge-score">${review.totalScore || '-'}/100</span> &nbsp;&nbsp;|&nbsp;&nbsp;
+  <strong>AI:</strong> ${meta.aiModels ? Object.values(meta.aiModels).join(' → ') : '-'}
+</div>
+
+${review.totalScore ? `
+<h2>📊 검수 결과</h2>
+<table>
+  <tr><th>항목</th><th>점수</th></tr>
+  ${Object.entries(review.scores || {}).map(([k,v]) => `<tr><td>${k}</td><td>${v}점</td></tr>`).join('')}
+  <tr style="font-weight:bold; background:#f1f5f9;"><td>총점</td><td>${review.totalScore}점</td></tr>
+</table>
+${(review.issues || []).length > 0 ? `
+<h3>⚠️ 수정 사항 (${review.issues.length}건)</h3>
+<table>
+  <tr><th>위치</th><th>문제</th><th>수정 제안</th></tr>
+  ${review.issues.map(i => `<tr><td>${i.content || i.location || '-'}</td><td>${i.problem || '-'}</td><td>${i.fix || i.suggestion || '-'}</td></tr>`).join('')}
+</table>` : ''}
+` : ''}
+
+${hr.reviewer ? `
+<h2>👤 담당자 검수</h2>
+<table>
+  <tr><th>항목</th><th>판정</th><th>메모</th></tr>
+  <tr><td>쇼츠</td><td>${hr.shorts?.rating === 'good' ? '👍 좋음' : hr.shorts?.rating === 'edit' ? '✏️ 수정필요' : hr.shorts?.rating === 'reject' ? '👎 반려' : '-'}</td><td>${hr.shorts?.memo || '-'}</td></tr>
+  <tr><td>카드뉴스</td><td>${hr.carousel?.rating === 'good' ? '👍 좋음' : hr.carousel?.rating === 'edit' ? '✏️ 수정필요' : hr.carousel?.rating === 'reject' ? '👎 반려' : '-'}</td><td>${hr.carousel?.memo || '-'}</td></tr>
+  <tr><td>블로그</td><td>${hr.blog?.rating === 'good' ? '👍 좋음' : hr.blog?.rating === 'edit' ? '✏️ 수정필요' : hr.blog?.rating === 'reject' ? '👎 반려' : '-'}</td><td>${hr.blog?.memo || '-'}</td></tr>
+  <tr style="font-weight:bold; background:#f1f5f9;"><td>종합</td><td>${hr.decision === 'approved' ? '✅ 승인' : hr.decision === 'hold' ? '⏸️ 보류' : hr.decision === 'regenerate' ? '🔄 재생성' : '-'}</td><td>${hr.memo || '-'}</td></tr>
+</table>
+<p style="font-size:10pt; color:#64748b;">검수자: ${hr.reviewer || '-'} | 검수일: ${hr.reviewedAt ? new Date(hr.reviewedAt).toLocaleString('ko') : '-'}</p>
+` : ''}
+
+<hr class="divider">
+
+<h2>🎬 쇼츠 스크립트</h2>
+<table>
+  <tr><th>항목</th><th>내용</th></tr>
+  <tr><td>제목</td><td><strong>${shorts.title || '-'}</strong></td></tr>
+  <tr><td>설명</td><td>${shorts.description || '-'}</td></tr>
+  <tr><td>썸네일</td><td>${shorts.thumbnailText || '-'}</td></tr>
+  <tr><td>해시태그</td><td class="hashtag">${(shorts.hashtags || []).join('  ')}</td></tr>
+</table>
+
+<h3>씬 구성 (${(shorts.scenes || []).length}개)</h3>
+${(shorts.scenes || []).map((sc, i) => `
+<div class="scene-box">
+  <strong>씬 ${i+1}</strong> — ${sc.time || ''} [${sc.type || ''}]<br>
+  <strong>자막:</strong> ${sc.subtitle || '-'} (${(sc.subtitle||'').length}자)<br>
+  <strong>나레이션:</strong> ${sc.narration || '-'}<br>
+  <strong>비주얼:</strong> ${sc.visual || '-'}
+</div>`).join('')}
+
+<hr class="divider">
+
+<h2>📰 카드뉴스</h2>
+<table>
+  <tr><th>항목</th><th>내용</th></tr>
+  <tr><td>제목</td><td><strong>${carousel.title || '-'}</strong></td></tr>
+  <tr><td>캡션</td><td>${carousel.caption || '-'}</td></tr>
+  <tr><td>장수</td><td>${(carousel.slides || []).length}장</td></tr>
+</table>
+
+<h3>슬라이드 구성</h3>
+${(carousel.slides || []).map((sl, i) => `
+<div class="slide-box">
+  <strong>${i+1}장</strong> — ${sl.type || sl.page || ''}<br>
+  <strong>헤드라인:</strong> ${sl.headline || '-'}<br>
+  <strong>본문:</strong> ${sl.body || '-'}
+</div>`).join('')}
+
+<hr class="divider">
+
+<h2>📝 블로그</h2>
+<table>
+  <tr><th>항목</th><th>내용</th></tr>
+  <tr><td>제목</td><td><strong>${blog.title || '-'}</strong></td></tr>
+  <tr><td>메타설명</td><td>${blog.metaDescription || '-'}</td></tr>
+  <tr><td>태그</td><td class="hashtag">${(blog.tags || []).map(t => '#'+t).join('  ')}</td></tr>
+</table>
+
+<h3>본문</h3>
+<div style="background:#f8fafc; border:1px solid #e2e8f0; padding:16px; border-radius:8px; line-height:2.0;">
+${blog.htmlBody || blog.body || '본문 데이터 없음'}
+</div>
+
+<div class="footer">
+  Videoto — AI 콘텐츠 자동 생성 시스템 | (주)KFPC | ${new Date().toLocaleDateString('ko')} 출력
+</div>
+</body></html>`;
+
+    const blob = new Blob(['\ufeff' + html], { type: 'application/msword;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${contentId}_콘텐츠리포트.doc`;
+    a.click();
+  } catch (e) { alert('다운로드 실패: ' + e.message); }
+}
+
+// ════════════════════════════════════════
+// Kill Switch
+// ════════════════════════════════════════
+async function toggleKillSwitch() {
+  const el = document.getElementById('killSwitch');
+  const newState = !el.classList.contains('off');
+  try {
+    await fetch(`${API_BASE}/systemStatus`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ killSwitch: newState })
+    });
+    el.className = newState ? 'toggle off' : 'toggle';
+  } catch (e) { alert('Kill Switch 변경 실패'); }
+}
+
+// ── 초기화 ──
+init();
+</script>
+</body>
+</html>
