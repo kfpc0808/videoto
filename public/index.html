@@ -12,10 +12,10 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Pretendard', 'Apple SD Gothic Neo', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-  .header h1 { font-size: 20px; font-weight: 700; }
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .header h1 { font-size: 18px; font-weight: 700; white-space: nowrap; }
   .header h1 span { color: var(--primary-light); }
-  .header-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .kill-switch { display: flex; align-items: center; gap: 8px; font-size: 14px; }
   .toggle { width: 44px; height: 24px; background: var(--success); border-radius: 12px; position: relative; cursor: pointer; transition: .3s; }
   .toggle.off { background: var(--danger); }
@@ -135,9 +135,9 @@
       <span>시스템</span>
       <div class="toggle" id="killSwitch" onclick="toggleKillSwitch()"></div>
     </div>
-    <button class="btn btn-primary" onclick="openGeneratePanel()">➕ 수동 생성</button>
-    <button class="btn btn-outline" onclick="openTopicManager()">📝 주제 관리</button>
-    <button class="btn btn-outline" onclick="loadDashboard()">🔄 새로고침</button>
+    <button class="btn btn-primary btn-sm" onclick="openGeneratePanel()">➕ 생성</button>
+    <button class="btn btn-outline btn-sm" onclick="openTopicManager()">📝 주제</button>
+    <button class="btn btn-outline btn-sm" onclick="loadDashboard()">🔄</button>
   </div>
 </div>
 
@@ -338,20 +338,26 @@ async function loadTopics() {
 // ════════════════════════════════════════
 async function loadDashboard() {
   try {
-    const statusRes = await fetch(`${API_BASE}/systemStatus`);
+    const statusRes = await fetch(`${API_BASE}/systemStatus?productId=${currentProductId}`);
     if (statusRes.ok) {
       const data = await statusRes.json();
       if (data.success) {
         document.getElementById('killSwitch').className = data.system.killSwitch ? 'toggle off' : 'toggle';
-        const nextIdx = data.system.currentTopicIndex % TOPICS.length;
-        document.getElementById('statNextTopic').textContent = TOPICS[nextIdx]?.title || '-';
-        document.getElementById('statNextTopicSub').textContent = `#${nextIdx + 1} / ${TOPICS.length}`;
+        const topicCount = data.system.topicCount || 0;
+        if (topicCount > 0) {
+          const nextIdx = data.system.currentTopicIndex % topicCount;
+          document.getElementById('statNextTopic').textContent = TOPICS[nextIdx]?.title || '-';
+          document.getElementById('statNextTopicSub').textContent = `#${nextIdx + 1} / ${topicCount}`;
+        } else {
+          document.getElementById('statNextTopic').textContent = '주제 없음';
+          document.getElementById('statNextTopicSub').textContent = '주제를 먼저 등록하세요';
+        }
       }
     }
   } catch (e) { console.log('시스템 상태 로드 실패'); }
 
   try {
-    const listRes = await fetch(`${API_BASE}/listContents?limit=20`);
+    const listRes = await fetch(`${API_BASE}/listContents?limit=20&productId=${currentProductId}`);
     if (listRes.ok) {
       const data = await listRes.json();
       if (data.success) {
@@ -363,8 +369,9 @@ async function loadDashboard() {
         document.getElementById('statPending').textContent = pending;
 
         const tbody = document.getElementById('contentTable');
+        const productName = PRODUCTS[currentProductId]?.name || currentProductId;
         if (total === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:var(--text-dim);">아직 생성된 콘텐츠가 없습니다. 수동 생성을 시작해보세요.</td></tr>';
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:40px; color:var(--text-dim);">${productName}의 콘텐츠가 아직 없습니다. 수동 생성을 시작해보세요.</td></tr>`;
         } else {
           tbody.innerHTML = data.contents.map(c => {
             const statusMap = {
