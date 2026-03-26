@@ -6,9 +6,16 @@
 <title>Videoto — 콘텐츠 자동 생성 관리</title>
 <style>
   :root {
+    --primary: #1a56db; --primary-light: #2563eb; --success: #059669;
+    --warning: #d97706; --danger: #dc2626; --bg: #f8fafc; --surface: #ffffff;
+    --surface2: #f1f5f9; --text: #1e293b; --text-dim: #64748b; --border: #e2e8f0;
+    --terminal-bg: #1e293b; --terminal-text: #e2e8f0;
+  }
+  body.dark-mode {
     --primary: #1a56db; --primary-light: #3b82f6; --success: #059669;
     --warning: #d97706; --danger: #dc2626; --bg: #0f172a; --surface: #1e293b;
     --surface2: #334155; --text: #f1f5f9; --text-dim: #94a3b8; --border: #475569;
+    --terminal-bg: #0f172a; --terminal-text: #e2e8f0;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Pretendard', 'Apple SD Gothic Neo', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
@@ -23,7 +30,8 @@
   .toggle.off::after { left: 22px; }
   .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-  .stat-card { background: var(--surface); border-radius: 12px; padding: 20px; border: 1px solid var(--border); }
+  .stat-card { background: var(--surface); border-radius: 12px; padding: 20px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  body.dark-mode .stat-card { box-shadow: none; }
   .stat-card .label { font-size: 13px; color: var(--text-dim); margin-bottom: 8px; }
   .stat-card .value { font-size: 28px; font-weight: 800; }
   .stat-card .sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
@@ -36,13 +44,20 @@
   td { padding: 10px 12px; font-size: 14px; border-bottom: 1px solid rgba(71,85,105,.3); }
   tr:hover td { background: rgba(59,130,246,.05); }
   .badge { padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block; }
-  .badge-published { background: rgba(5,150,105,.15); color: #34d399; }
-  .badge-generated { background: rgba(217,119,6,.15); color: #fbbf24; }
-  .badge-pending { background: rgba(139,92,246,.15); color: #a78bfa; }
-  .badge-approved { background: rgba(59,130,246,.15); color: #60a5fa; }
-  .badge-hold { background: rgba(148,163,184,.15); color: #94a3b8; }
-  .badge-rejected { background: rgba(220,38,38,.15); color: #f87171; }
-  .badge-error { background: rgba(220,38,38,.15); color: #f87171; }
+  .badge-published { background: rgba(5,150,105,.12); color: #047857; }
+  .badge-generated { background: rgba(217,119,6,.12); color: #b45309; }
+  .badge-pending { background: rgba(139,92,246,.12); color: #7c3aed; }
+  .badge-approved { background: rgba(59,130,246,.12); color: #1d4ed8; }
+  .badge-hold { background: rgba(100,116,139,.12); color: #475569; }
+  .badge-rejected { background: rgba(220,38,38,.12); color: #dc2626; }
+  .badge-error { background: rgba(220,38,38,.12); color: #dc2626; }
+  body.dark-mode .badge-published { background: rgba(5,150,105,.15); color: #34d399; }
+  body.dark-mode .badge-generated { background: rgba(217,119,6,.15); color: #fbbf24; }
+  body.dark-mode .badge-pending { background: rgba(139,92,246,.15); color: #a78bfa; }
+  body.dark-mode .badge-approved { background: rgba(59,130,246,.15); color: #60a5fa; }
+  body.dark-mode .badge-hold { background: rgba(148,163,184,.15); color: #94a3b8; }
+  body.dark-mode .badge-rejected { background: rgba(220,38,38,.15); color: #f87171; }
+  body.dark-mode .badge-error { background: rgba(220,38,38,.15); color: #f87171; }
   .btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: .2s; display: inline-flex; align-items: center; gap: 6px; }
   .btn-primary { background: var(--primary); color: #fff; }
   .btn-primary:hover { background: var(--primary-light); }
@@ -71,8 +86,8 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* 터미널 로그 */
-  .terminal { background: #0c0c0c; border-radius: 12px; border: 1px solid #333; overflow: hidden; }
-  .terminal-header { background: #1a1a2e; padding: 8px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #333; }
+  .terminal { background: #0f172a; border-radius: 12px; border: 1px solid #334155; overflow: hidden; }
+  .terminal-header { background: #1e293b; padding: 8px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #334155; }
   .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
   .terminal-dot.red { background: #ff5f56; } .terminal-dot.yellow { background: #ffbd2e; } .terminal-dot.green { background: #27c93f; }
   .terminal-title { font-size: 12px; color: #888; margin-left: 8px; }
@@ -87,7 +102,7 @@
   .log-line.done .log-msg { color: #34d399; }
   .log-line.error .log-msg { color: #f87171; }
   .log-line.warn .log-msg { color: #fbbf24; }
-  .terminal-footer { padding: 8px 16px; background: #1a1a2e; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #888; }
+  .terminal-footer { padding: 8px 16px; background: #1e293b; border-top: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #94a3b8; }
   .progress-mini { height: 3px; background: #333; border-radius: 2px; flex: 1; margin: 0 12px; }
   .progress-mini-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 2px; transition: width .5s; }
 
@@ -137,7 +152,7 @@
     </div>
     <button class="btn btn-primary btn-sm" onclick="openGeneratePanel()">➕ 생성</button>
     <button class="btn btn-outline btn-sm" onclick="openTopicManager()">📝 주제</button>
-    <button class="btn btn-outline btn-sm" onclick="loadDashboard()">🔄</button>
+    <button class="btn btn-outline btn-sm" id="themeToggle" onclick="toggleTheme()" title="라이트/다크 모드 전환">🌙</button>
   </div>
 </div>
 
@@ -171,6 +186,8 @@
         <div class="progress-mini"><div class="progress-mini-fill" id="terminalProgress" style="width:0%"></div></div>
         <span id="terminalElapsed">0초</span>
         <button class="btn btn-sm btn-outline" onclick="downloadLog()" style="margin-left:8px;">📥 로그 저장</button>
+        <button class="btn btn-sm btn-danger" onclick="cancelCurrentProgress()" style="margin-left:4px;" id="btnCancelProgress">❌ 강제 종료</button>
+        <button class="btn btn-sm btn-outline" onclick="closeTerminal()" style="margin-left:4px;">✕ 닫기</button>
       </div>
     </div>
   </div>
@@ -281,12 +298,23 @@ let selectedTopicIndex = null;
 let progressTimer = null;
 let generateStartTime = null;
 
-function selectProduct(productId) {
+async function selectProduct(productId) {
   currentProductId = productId;
   document.querySelectorAll('.product-tab').forEach(t => t.classList.remove('active'));
   document.querySelector(`.product-tab[onclick*="${productId}"]`).classList.add('active');
-  loadTopics();
-  loadDashboard();
+
+  // 터미널 숨기기 + 폴링 중지
+  document.getElementById('progressPanel').style.display = 'none';
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+
+  // 수동 생성 패널 닫기
+  document.getElementById('generatePanel').style.display = 'none';
+  selectedTopicIndex = null;
+
+  // 주제 로드 → 대시보드 순차 실행
+  await loadTopics();
+  await loadDashboard();
+
   // 주제 관리 패널이 열려있으면 갱신
   if (document.getElementById('topicPanel').style.display !== 'none') renderTopicManager();
 }
@@ -295,6 +323,7 @@ function selectProduct(productId) {
 // 초기화
 // ════════════════════════════════════════
 async function init() {
+  loadTheme();
   await loadTopics();
   await loadDashboard();
   checkActiveProgress();
@@ -610,13 +639,16 @@ async function checkActiveProgress() {
     if (res.ok) {
       const data = await res.json();
       if (data.success && data.progress && data.progress.currentStatus === 'running') {
-        currentContentId = data.progress.contentId || data.progress.id;
-        generateStartTime = new Date(data.progress.startedAt || data.progress.updatedAt).getTime();
-        document.getElementById('progressPanel').style.display = 'block';
-        // 기존 로그 전부 표시
-        (data.progress.logs || []).forEach(entry => appendLogLine(entry));
-        lastLogCount = (data.progress.logs || []).length;
-        startProgressPolling();
+        const progressId = data.progress.contentId || data.progress.id || '';
+        // 현재 상품의 작업만 표시 (다른 상품 작업이면 무시)
+        if (progressId.includes(currentProductId) || (!progressId.includes('corphome') && !progressId.includes('innercircle') && !progressId.includes('jarvia') && !progressId.includes('taxnavi') && currentProductId === 'conhome')) {
+          currentContentId = progressId;
+          generateStartTime = new Date(data.progress.startedAt || data.progress.updatedAt).getTime();
+          document.getElementById('progressPanel').style.display = 'block';
+          (data.progress.logs || []).forEach(entry => appendLogLine(entry));
+          lastLogCount = (data.progress.logs || []).length;
+          startProgressPolling();
+        }
       }
     }
   } catch (e) { /* 무시 */ }
@@ -1225,6 +1257,62 @@ ${blog.htmlBody || blog.body || '본문 데이터 없음'}
 }
 
 // ════════════════════════════════════════
+// ════════════════════════════════════════
+// 테마 전환 (라이트/다크)
+// ════════════════════════════════════════
+function toggleTheme() {
+  const isDark = document.body.classList.toggle('dark-mode');
+  document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌙';
+  localStorage.setItem('videoto-theme', isDark ? 'dark' : 'light');
+}
+function loadTheme() {
+  const saved = localStorage.getItem('videoto-theme');
+  if (saved === 'dark') {
+    document.body.classList.add('dark-mode');
+    document.getElementById('themeToggle').textContent = '☀️';
+  }
+}
+
+// ════════════════════════════════════════
+// 터미널 제어 (강제 종료 + 닫기)
+// ════════════════════════════════════════
+let currentProgressId = null; // alias for currentContentId
+
+async function cancelCurrentProgress() {
+  const targetId = currentContentId || currentProgressId;
+  if (!targetId) {
+    // 현재 진행 중인 작업 ID 가져오기
+    try {
+      const res = await fetch(`${API_BASE}/generateProgress`);
+      const data = await res.json();
+      if (data.progress?.id) { currentProgressId = data.progress.id; }
+      else { alert('진행 중인 작업이 없습니다.'); return; }
+    } catch (e) { alert('상태 조회 실패'); return; }
+  }
+  const cancelId = currentContentId || currentProgressId;
+  if (!confirm(`${cancelId} 작업을 강제 종료하시겠습니까?`)) return;
+  try {
+    const res = await fetch(`${API_BASE}/cancelProgress`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentId: cancelId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert('✅ 강제 종료 완료');
+      if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+      document.getElementById('terminalStatus').textContent = '강제 종료됨';
+      document.getElementById('terminalProgress').style.width = '0%';
+      currentProgressId = null;
+    } else { alert('종료 실패: ' + (data.error || '')); }
+  } catch (e) { alert('서버 연결 실패: ' + e.message); }
+}
+
+function closeTerminal() {
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+  document.getElementById('progressPanel').style.display = 'none';
+  currentProgressId = null;
+}
+
 // Kill Switch
 // ════════════════════════════════════════
 async function toggleKillSwitch() {
