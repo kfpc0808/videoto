@@ -197,14 +197,15 @@
 
   <!-- 최근 콘텐츠 -->
   <div class="panel">
-    <div class="panel-header">
+    <div class="panel-header" style="display:flex;align-items:center;gap:12px;">
       <h2>📋 최근 콘텐츠</h2>
-      <span style="font-size:13px; color:var(--text-dim);">최근 20개</span>
+      <button class="btn btn-sm" id="btnDeleteSelected" onclick="deleteSelectedContents()" style="display:none;background:#dc2626;color:#fff;font-size:12px;">🗑️ 선택 삭제</button>
+      <span style="font-size:13px; color:var(--text-dim);margin-left:auto;">최근 20개</span>
     </div>
     <div class="panel-body" style="padding:0;">
       <table>
-        <thead><tr><th>콘텐츠 ID</th><th>주제</th><th>카테고리</th><th>상태</th><th>점수</th><th>소요</th><th>생성일</th><th>액션</th></tr></thead>
-        <tbody id="contentTable"><tr><td colspan="8" class="loading"><div class="spinner"></div> 로딩 중...</td></tr></tbody>
+        <thead><tr><th style="width:36px;"><input type="checkbox" id="checkAll" onchange="toggleCheckAll(this)" title="전체 선택"></th><th>콘텐츠 ID</th><th>주제</th><th>카테고리</th><th>상태</th><th>점수</th><th>소요</th><th>생성일</th><th>액션</th></tr></thead>
+        <tbody id="contentTable"><tr><td colspan="9" class="loading"><div class="spinner"></div> 로딩 중...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -403,7 +404,7 @@ async function loadDashboard() {
         const tbody = document.getElementById('contentTable');
         const productName = PRODUCTS[currentProductId]?.name || currentProductId;
         if (total === 0) {
-          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:40px; color:var(--text-dim);">${productName}의 콘텐츠가 아직 없습니다. 수동 생성을 시작해보세요.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-dim);">${productName}의 콘텐츠가 아직 없습니다. 수동 생성을 시작해보세요.</td></tr>`;
         } else {
           tbody.innerHTML = data.contents.map(c => {
             const statusMap = {
@@ -422,6 +423,7 @@ async function loadDashboard() {
             const reviewBtn = (c.status === 'pending_review' || c.status === 'generated') ? `<button class="btn btn-sm btn-primary" onclick="openReview('${c.contentId}')">✍️ 검수</button> ` : '';
             const naverBtn = c.status === 'published' ? `<button class="btn btn-sm btn-outline" onclick="openNaverInput('${c.contentId}')">📊</button> ` : '';
             return `<tr>
+              <td><input type="checkbox" class="content-check" value="${c.contentId}" onchange="updateDeleteBtn()"></td>
               <td><a href="#" onclick="showDetail('${c.contentId}');return false" style="color:var(--primary-light)">${c.contentId}</a></td>
               <td>${c.topic?.title || '-'}</td>
               <td>${c.topic?.category || '-'}</td>
@@ -435,7 +437,7 @@ async function loadDashboard() {
         }
       }
     }
-  } catch (e) { document.getElementById('contentTable').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:var(--text-dim);">API 연결 대기 중... 잠시 후 새로고침하세요.</td></tr>'; }
+  } catch (e) { document.getElementById('contentTable').innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-dim);">API 연결 대기 중... 잠시 후 새로고침하세요.</td></tr>'; }
 }
 
 // ════════════════════════════════════════
@@ -1394,6 +1396,66 @@ async function toggleKillSwitch() {
     });
     el.className = newState ? 'toggle off' : 'toggle';
   } catch (e) { alert('Kill Switch 변경 실패'); }
+}
+
+// ════════════════════════════════════════
+// 콘텐츠 선택 삭제
+// ════════════════════════════════════════
+function toggleCheckAll(el) {
+  document.querySelectorAll('.content-check').forEach(cb => { cb.checked = el.checked; });
+  updateDeleteBtn();
+}
+
+function updateDeleteBtn() {
+  const checked = document.querySelectorAll('.content-check:checked');
+  const btn = document.getElementById('btnDeleteSelected');
+  if (checked.length > 0) {
+    btn.style.display = 'inline-block';
+    btn.textContent = `🗑️ ${checked.length}개 삭제`;
+  } else {
+    btn.style.display = 'none';
+  }
+  // 전체선택 체크박스 동기화
+  const all = document.querySelectorAll('.content-check');
+  document.getElementById('checkAll').checked = all.length > 0 && checked.length === all.length;
+}
+
+async function deleteSelectedContents() {
+  const checked = document.querySelectorAll('.content-check:checked');
+  if (checked.length === 0) return;
+
+  const ids = Array.from(checked).map(cb => cb.value);
+  const idList = ids.length <= 3 ? ids.join(', ') : `${ids.slice(0,3).join(', ')} 외 ${ids.length - 3}개`;
+
+  if (!confirm(`${ids.length}개 콘텐츠를 삭제합니다.\n\n${idList}\n\n⚠️ Firestore 문서 + Storage 아카이브가 모두 삭제됩니다.\n정말 삭제하시겠습니까?`)) return;
+
+  const btn = document.getElementById('btnDeleteSelected');
+  btn.textContent = '삭제 중...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE}/deleteContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentIds: ids })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert(`${data.deleted}/${data.total}개 삭제 완료`);
+      document.getElementById('checkAll').checked = false;
+      btn.style.display = 'none';
+      btn.disabled = false;
+      init(); // 목록 새로고침
+    } else {
+      alert('삭제 실패: ' + (data.error || '알 수 없는 오류'));
+      btn.textContent = `🗑️ ${ids.length}개 삭제`;
+      btn.disabled = false;
+    }
+  } catch (e) {
+    alert('삭제 실패: ' + e.message);
+    btn.textContent = `🗑️ ${ids.length}개 삭제`;
+    btn.disabled = false;
+  }
 }
 
 // ── 초기화 ──
