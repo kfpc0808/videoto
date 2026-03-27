@@ -485,6 +485,8 @@ async function runGenerate() {
     const res = await fetch(url);
     const data = await res.json();
     stopProgressPolling();
+    // 서버 완료 후 마지막 로그를 한 번 더 가져옴
+    await fetchFinalLogs();
     if (data.success) {
       status.innerHTML = `✅ <strong>${data.contentId}</strong> 생성 완료! (${data.elapsed || '-'}초, ${data.score || '-'}점)`;
       updateProgressComplete(data);
@@ -617,10 +619,12 @@ function startProgressPolling() {
         document.getElementById('terminalProgress').style.width = pct + '%';
 
         // 상태 판단 — 서버 찾은 후 10초 이내에는 done 무시 (중간 기록일 수 있음)
-        if (p.currentStatus === 'done') {
+        if (p.currentStatus === 'done' || p.currentStatus === 'failed') {
           const sinceFund = serverFoundAt ? (Date.now() - serverFoundAt) / 1000 : 999;
           if (sinceFund > 10) {
-            document.getElementById('terminalStatus').textContent = '✅ 완료!';
+            const statusText = p.currentStatus === 'done' ? '✅ 완료!' : '❌ 실패';
+            document.getElementById('terminalStatus').textContent = statusText;
+            document.getElementById('terminalProgress').style.width = '100%';
             stopProgressPolling();
           }
         } else {
@@ -639,6 +643,30 @@ function startProgressPolling() {
 
 function stopProgressPolling() {
   if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+}
+
+// 서버 완료 후 마지막 로그를 전부 가져오는 함수
+async function fetchFinalLogs() {
+  if (!currentContentId) return;
+  try {
+    // 최대 3회 시도 (로그 기록 지연 대비)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await new Promise(r => setTimeout(r, 1000)); // 1초 대기
+      const res = await fetch(`${API_BASE}/generateProgress?id=${currentContentId}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (!data.success || !data.progress) continue;
+      const logs = data.progress.logs || [];
+      if (logs.length > lastLogCount) {
+        for (let i = lastLogCount; i < logs.length; i++) {
+          appendLogLine(logs[i]);
+        }
+        lastLogCount = logs.length;
+      }
+      // 모든 로그를 가져왔으면 종료
+      if (data.progress.currentStatus === 'done' || data.progress.currentStatus === 'failed') break;
+    }
+  } catch (e) { /* 무시 */ }
 }
 
 function updateProgressComplete(data) {
