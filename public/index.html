@@ -619,10 +619,8 @@ function startProgressPolling() {
           lastLogCount = logs.length;
         }
 
-        // 프로그레스바
-        const total = 8;
-        const done = logs.filter(l => l.icon === '✅' || l.icon === '⏭️' || l.icon === '🎉').length;
-        const pct = Math.min(100, Math.round((done / total) * 100));
+        // 프로그레스바 — 서버가 계산한 percent 사용
+        const pct = p.percent || 0;
         document.getElementById('terminalProgress').style.width = pct + '%';
 
         // 상태 판단 — 서버 찾은 후 10초 이내에는 done 무시 (중간 기록일 수 있음)
