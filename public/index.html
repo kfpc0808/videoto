@@ -170,9 +170,9 @@
 
 <div class="container">
   <div class="grid" id="stats">
-    <div class="stat-card"><div class="label">총 콘텐츠</div><div class="value" id="statTotal">-</div><div class="sub">생성된 전체 콘텐츠</div></div>
-    <div class="stat-card"><div class="label">게시 완료</div><div class="value" id="statPublished" style="color:var(--success)">-</div><div class="sub">플랫폼 게시 완료</div></div>
-    <div class="stat-card"><div class="label">대기 중</div><div class="value" id="statPending" style="color:var(--warning)">-</div><div class="sub">게시 대기</div></div>
+    <div class="stat-card"><div class="label">총 콘텐츠</div><div class="value" id="statTotal">-</div><div class="sub">최근 조회 기준</div></div>
+    <div class="stat-card"><div class="label">게시 완료</div><div class="value" id="statPublished" style="color:var(--success)">-</div><div class="sub">최근 조회 기준</div></div>
+    <div class="stat-card"><div class="label">대기 중</div><div class="value" id="statPending" style="color:var(--warning)">-</div><div class="sub">검수/게시 대기</div></div>
     <div class="stat-card"><div class="label">다음 주제</div><div class="value" id="statNextTopic" style="font-size:16px;">-</div><div class="sub" id="statNextTopicSub">-</div></div>
   </div>
 
@@ -189,7 +189,7 @@
         <div class="progress-mini"><div class="progress-mini-fill" id="terminalProgress" style="width:0%"></div></div>
         <span id="terminalElapsed">0초</span>
         <button class="btn btn-sm" onclick="downloadLog()" style="margin-left:8px; background:#334155; color:#e2e8f0; border:1px solid #475569;">📥 로그 저장</button>
-        <button class="btn btn-sm" onclick="cancelCurrentProgress()" style="margin-left:4px; background:#dc2626; color:#fff; border:1px solid #dc2626; font-weight:600;" id="btnCancelProgress">❌ 강제 종료</button>
+        <button class="btn btn-sm" onclick="cancelCurrentProgress()" style="margin-left:4px; background:#dc2626; color:#fff; border:1px solid #dc2626; font-weight:600;" id="btnCancelProgress">⏹️ 중단 요청</button>
         <button class="btn btn-sm" onclick="closeTerminal()" style="margin-left:4px; background:#334155; color:#e2e8f0; border:1px solid #475569;">✕ 닫기</button>
       </div>
     </div>
@@ -451,10 +451,15 @@ function openGeneratePanel() {
 }
 
 function renderTopicGrid() {
+  const generateBtn = document.getElementById('generateBtn');
   if (TOPICS.length === 0) {
     document.getElementById('topicGrid').innerHTML = `<p style="color:var(--text-dim); padding:20px;">이 상품의 주제가 아직 없습니다. 📝 주제 관리에서 추가하세요.</p>`;
+    generateBtn.disabled = true;
+    generateBtn.title = '주제를 먼저 추가하세요';
     return;
   }
+  generateBtn.disabled = false;
+  generateBtn.title = '';
   document.getElementById('topicGrid').innerHTML = TOPICS.map((t, i) => `
     <div class="topic-item ${selectedTopicIndex === i ? 'selected' : ''}" onclick="selectTopic(${i})">
       <div class="cat">${t.category}</div>
@@ -1345,7 +1350,7 @@ function loadTheme() {
 }
 
 // ════════════════════════════════════════
-// 터미널 제어 (강제 종료 + 닫기)
+// 터미널 제어 (중단 요청 + 닫기)
 // ════════════════════════════════════════
 let currentProgressId = null; // alias for currentContentId
 
@@ -1361,7 +1366,7 @@ async function cancelCurrentProgress() {
     } catch (e) { alert('상태 조회 실패'); return; }
   }
   const cancelId = currentContentId || currentProgressId;
-  if (!confirm(`${cancelId} 작업을 강제 종료하시겠습니까?`)) return;
+  if (!confirm(`${cancelId} 작업을 중단 요청하시겠습니까?\n※ 이미 진행 중인 AI 호출은 완료될 수 있습니다.`)) return;
   try {
     const res = await fetch(`${API_BASE}/cancelProgress`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1369,9 +1374,9 @@ async function cancelCurrentProgress() {
     });
     const data = await res.json();
     if (data.success) {
-      alert('✅ 강제 종료 완료');
+      alert('✅ 중단 요청 완료');
       if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
-      document.getElementById('terminalStatus').textContent = '강제 종료됨';
+      document.getElementById('terminalStatus').textContent = '중단 요청됨';
       document.getElementById('terminalProgress').style.width = '0%';
       currentProgressId = null;
     } else { alert('종료 실패: ' + (data.error || '')); }
