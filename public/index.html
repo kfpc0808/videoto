@@ -919,10 +919,10 @@ function renderVideoUrls(videoUrls) {
 
 function renderCarousel(c) {
   if (!c) return '<p>카드뉴스 데이터 없음</p>';
-  const slides = (c.slides || []).map(sl => `<div style="padding:12px; margin:8px 0; background:${sl.bgColor || 'var(--bg)'}; border-radius:8px;">
-    <div style="font-size:11px; color:var(--text-dim);">${sl.type || ''} — ${sl.page}장</div>
-    <div style="font-size:16px; font-weight:700; margin:4px 0;">${sl.headline || ''}</div>
-    <div style="color:var(--text-dim);">${sl.body || ''}</div>
+  const slides = (c.slides || []).map(sl => `<div style="padding:10px 0; border-bottom:1px solid var(--border);">
+    <span style="font-size:11px; color:var(--text-dim); font-weight:500;">${sl.type || ''} — ${sl.page}장</span>
+    <div style="font-size:15px; font-weight:700; margin:4px 0;">${sl.headline || ''}</div>
+    <div style="font-size:13px; color:var(--text-dim);">${sl.body || ''}</div>
   </div>`).join('');
   return `<h3 style="margin-bottom:12px;">${c.title || ''}</h3>
     ${c.caption ? `<p style="color:var(--text-dim); margin-bottom:12px;">${c.caption}</p>` : ''}
