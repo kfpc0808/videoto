@@ -924,8 +924,19 @@ function renderCarousel(c) {
     <div style="font-size:15px; font-weight:700; margin:4px 0;">${sl.headline || ''}</div>
     <div style="font-size:13px; color:var(--text-dim);">${sl.body || ''}</div>
   </div>`).join('');
+
+  // 카드뉴스 PNG 이미지 미리보기
+  const images = (c.imageUrls || []).length > 0
+    ? `<div style="margin:16px 0;">
+        <h4 style="margin-bottom:8px; font-size:14px;">📸 생성된 카드 이미지</h4>
+        <div style="display:flex; gap:8px; overflow-x:auto; padding:4px 0;">
+          ${c.imageUrls.map((url, i) => `<img src="${url}" alt="슬라이드 ${i+1}" style="width:120px; height:120px; object-fit:cover; border-radius:8px; border:1px solid var(--border); flex-shrink:0; cursor:pointer;" onclick="window.open('${url}','_blank')">`).join('')}
+        </div>
+      </div>` : '';
+
   return `<h3 style="margin-bottom:12px;">${c.title || ''}</h3>
     ${c.caption ? `<p style="color:var(--text-dim); margin-bottom:12px;">${c.caption}</p>` : ''}
+    ${images}
     ${slides}`;
 }
 
