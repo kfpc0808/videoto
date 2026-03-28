@@ -857,6 +857,7 @@ async function showDetail(contentId) {
     if (data.success && data.content) {
       const c = data.content;
       const final = c.stages?.final || c.finalContent || {};
+      if (c.finalContent?.carousel?.imageUrls && final.carousel) { final.carousel.imageUrls = c.finalContent.carousel.imageUrls; }
       const review = c.stages?.reviewed?.review || {};
       body.innerHTML = `
         <div class="tabs">
@@ -976,6 +977,7 @@ async function openReview(contentId) {
     if (!data.success || !data.content) { body.innerHTML = '<p>콘텐츠를 찾을 수 없습니다.</p>'; return; }
     const c = data.content;
     const final = c.stages?.final || c.finalContent || {};
+    if (c.finalContent?.carousel?.imageUrls && final.carousel) { final.carousel.imageUrls = c.finalContent.carousel.imageUrls; }
     const shorts = final.shorts || {};
     const carousel = final.carousel || {};
     const blog = final.blog || {};
@@ -1192,6 +1194,7 @@ async function downloadContent(contentId) {
     if (!data.success || !data.content) { alert('콘텐츠를 찾을 수 없습니다.'); return; }
     const c = data.content;
     const final = c.stages?.final || c.finalContent || {};
+    if (c.finalContent?.carousel?.imageUrls && final.carousel) { final.carousel.imageUrls = c.finalContent.carousel.imageUrls; }
     const shorts = final.shorts || {};
     const carousel = final.carousel || {};
     const blog = final.blog || {};
