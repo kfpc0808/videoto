@@ -195,6 +195,21 @@
     </div>
   </div>
 
+  <!-- 영상 생성 상태 패널 -->
+  <div id="videoStatusPanel" style="display:none; margin-bottom:24px;">
+    <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:12px; padding:20px;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+        <span id="videoStatusIcon" style="font-size:24px;">🎬</span>
+        <div>
+          <div id="videoStatusTitle" style="font-size:15px; font-weight:700; color:var(--text-light);">영상 생성 중...</div>
+          <div id="videoStatusSub" style="font-size:12px; color:var(--text-dim); margin-top:2px;">Shotstack에서 렌더링 중입니다. 약 2~3분 소요</div>
+        </div>
+        <div id="videoSpinner" style="margin-left:auto; width:20px; height:20px; border:2px solid #333; border-top:2px solid #3b82f6; border-radius:50%; animation: spin 1s linear infinite;"></div>
+      </div>
+      <div id="videoResultArea" style="display:none;"></div>
+    </div>
+  </div>
+
   <!-- 최근 콘텐츠 -->
   <div class="panel">
     <div class="panel-header" style="display:flex;align-items:center;gap:12px;">
@@ -480,6 +495,8 @@ async function runGenerate() {
   btn.textContent = '⏳ 생성 중...';
   status.textContent = 'AI 4개가 협업 중입니다. 약 3~4분 소요...';
   generateStartTime = Date.now();
+  stopVideoPolling();
+  document.getElementById('videoStatusPanel').style.display = 'none';
 
   // 진행 상태 패널 표시
   showProgressPanel();
@@ -679,6 +696,72 @@ function updateProgressComplete(data) {
   document.getElementById('terminalProgress').style.width = '100%';
   const elapsed = data.elapsed || Math.round((Date.now() - generateStartTime) / 1000);
   document.getElementById('terminalElapsed').textContent = `${elapsed}초 (${data.score || '-'}점)`;
+  // 영상 생성 폴링 시작
+  if (data.contentId) startVideoPolling(data.contentId);
+}
+
+// ════════════════════════════════════════
+// 영상 생성 상태 자동 감지
+// ════════════════════════════════════════
+let videoPollingTimer = null;
+
+function startVideoPolling(contentId) {
+  document.getElementById('videoStatusPanel').style.display = 'block';
+  document.getElementById('videoResultArea').style.display = 'none';
+  document.getElementById('videoSpinner').style.display = 'block';
+  document.getElementById('videoStatusTitle').textContent = '영상 생성 중...';
+  document.getElementById('videoStatusSub').textContent = 'Shotstack에서 렌더링 중입니다. 약 2~3분 소요';
+  document.getElementById('videoStatusIcon').textContent = '🎬';
+
+  let pollCount = 0;
+  videoPollingTimer = setInterval(async () => {
+    pollCount++;
+    try {
+      const res = await fetch(`${API_BASE}/getContent?id=${contentId}`);
+      const data = await res.json();
+      if (!data.success) return;
+      const c = data.content;
+      const vs = c.videoStatus;
+
+      // 경과 시간 표시
+      document.getElementById('videoStatusSub').textContent = `Shotstack 렌더링 중... (${pollCount * 15}초 경과)`;
+
+      if (vs === 'completed') {
+        stopVideoPolling();
+        document.getElementById('videoSpinner').style.display = 'none';
+        document.getElementById('videoStatusIcon').textContent = '✅';
+        document.getElementById('videoStatusTitle').textContent = '영상 생성 완료!';
+        document.getElementById('videoStatusSub').textContent = '세로 + 가로 영상이 준비되었습니다';
+        const shortsUrl = c.videoUrls?.shorts || null;
+        const landscapeUrl = c.videoUrls?.landscape || null;
+        const resultArea = document.getElementById('videoResultArea');
+        resultArea.style.display = 'block';
+        resultArea.innerHTML = `
+          <div style="margin-top:12px; display:flex; gap:12px; flex-wrap:wrap;">
+            ${shortsUrl ? `<a href="${shortsUrl}" target="_blank" style="flex:1; min-width:200px; padding:14px; background:#1e293b; border:1px solid #334155; border-radius:8px; text-decoration:none; display:flex; align-items:center; gap:10px;">
+              <span style="font-size:28px;">📱</span>
+              <div><div style="color:#e2e8f0; font-size:14px; font-weight:600;">세로 영상 (쇼츠/릴스)</div><div style="color:#60a5fa; font-size:12px; margin-top:2px;">▶ 클릭하여 재생</div></div>
+            </a>` : ''}
+            ${landscapeUrl ? `<a href="${landscapeUrl}" target="_blank" style="flex:1; min-width:200px; padding:14px; background:#1e293b; border:1px solid #334155; border-radius:8px; text-decoration:none; display:flex; align-items:center; gap:10px;">
+              <span style="font-size:28px;">🖥️</span>
+              <div><div style="color:#e2e8f0; font-size:14px; font-weight:600;">가로 영상 (16:9)</div><div style="color:#60a5fa; font-size:12px; margin-top:2px;">▶ 클릭하여 재생</div></div>
+            </a>` : ''}
+          </div>`;
+        // 대시보드 목록도 새로고침
+        await loadDashboard();
+      } else if (vs === 'failed') {
+        stopVideoPolling();
+        document.getElementById('videoSpinner').style.display = 'none';
+        document.getElementById('videoStatusIcon').textContent = '❌';
+        document.getElementById('videoStatusTitle').textContent = '영상 생성 실패';
+        document.getElementById('videoStatusSub').textContent = c.videoError || '재시도해주세요';
+      }
+    } catch (e) { /* 네트워크 오류 무시, 다음 폴링에서 재시도 */ }
+  }, 15000); // 15초마다 확인
+}
+
+function stopVideoPolling() {
+  if (videoPollingTimer) { clearInterval(videoPollingTimer); videoPollingTimer = null; }
 }
 
 function updateProgressError(error) {
