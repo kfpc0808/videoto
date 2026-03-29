@@ -86,18 +86,18 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* 터미널 로그 */
-  .terminal { background: #0f172a; border-radius: 12px; border: 1px solid #334155; overflow: hidden; }
+  .terminal { background: #1e293b; border-radius: 12px; border: 1px solid #475569; overflow: hidden; }
   .terminal-header { background: #1e293b; padding: 8px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #334155; }
   .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
   .terminal-dot.red { background: #ff5f56; } .terminal-dot.yellow { background: #ffbd2e; } .terminal-dot.green { background: #27c93f; }
   .terminal-title { font-size: 12px; color: #888; margin-left: 8px; }
   .terminal-body { padding: 16px; max-height: 500px; overflow-y: auto; font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace; font-size: 14px; line-height: 1.8; scroll-behavior: smooth; }
   .log-line { padding: 5px 10px; white-space: pre-wrap; word-break: break-word; border-radius: 4px; margin: 2px 0; line-height: 1.7; }
-  .log-time { color: #94a3b8; font-size: 12px; font-family: monospace; }
+  .log-time { color: #cbd5e1; font-size: 12px; font-family: monospace; }
   .log-icon { margin: 0 4px; }
-  .log-msg { color: #f1f5f9; font-size: 14px; font-weight: 500; }
-  .log-detail { color: #cbd5e1; padding-left: 32px; font-size: 13px; line-height: 1.6; margin: 2px 0; }
-  .log-data { color: #3b82f6; padding-left: 32px; font-size: 11px; }
+  .log-msg { color: #ffffff; font-size: 14px; font-weight: 500; }
+  .log-detail { color: #e2e8f0; padding-left: 32px; font-size: 13px; line-height: 1.6; margin: 2px 0; }
+  .log-data { color: #60a5fa; padding-left: 32px; font-size: 11px; }
   .log-separator { border-top: 1px dashed #475569; margin: 8px 0; }
   .log-line.running .log-msg { color: #60a5fa; }
   .log-line.done { background: rgba(52,211,153,0.08); }
@@ -105,7 +105,7 @@
   .log-line.error { background: rgba(248,113,113,0.08); }
   .log-line.error .log-msg { color: #f87171; font-weight: 600; }
   .log-line.warn .log-msg { color: #fbbf24; }
-  .terminal-footer { padding: 8px 16px; background: #1e293b; border-top: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #94a3b8; }
+  .terminal-footer { padding: 8px 16px; background: #283548; border-top: 1px solid #475569; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #cbd5e1; }
   .progress-mini { height: 3px; background: #333; border-radius: 2px; flex: 1; margin: 0 12px; }
   .progress-mini-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 2px; transition: width .5s; }
 
