@@ -142,6 +142,25 @@
     .topic-grid { grid-template-columns: 1fr; }
     .topic-row { flex-wrap: wrap; }
   }
+
+  /* 마스터데이터 편집 */
+  .md-tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+  .md-tab { padding: 8px 16px; border-radius: 8px; background: var(--surface2); color: var(--text-dim); cursor: pointer; font-size: 13px; font-weight: 600; border: 1px solid transparent; transition: .2s; }
+  .md-tab:hover { border-color: var(--primary-light); color: var(--primary-light); }
+  .md-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .md-tab .md-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-left: 6px; }
+  .md-tab .md-dot.filled { background: var(--success); }
+  .md-tab .md-dot.empty { background: var(--danger); opacity: .5; }
+  .md-guide { background: var(--surface2); border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .md-guide strong { color: var(--text); font-weight: 600; }
+  .md-textarea { width: 100%; min-height: 400px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 14px; font-size: 14px; font-family: inherit; line-height: 1.8; resize: vertical; }
+  .md-textarea:focus { outline: none; border-color: var(--primary-light); }
+  .md-footer { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+  .md-footer .char-count { font-size: 12px; color: var(--text-dim); }
+  .md-history { margin-top: 16px; }
+  .md-hist-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface2); border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
+  .md-hist-item .ver { font-weight: 700; color: var(--primary-light); min-width: 30px; }
+  .md-hist-item .date { color: var(--text-dim); flex: 1; }
 </style>
 </head>
 <body>
@@ -155,6 +174,7 @@
     </div>
     <button class="btn btn-primary btn-sm" onclick="openGeneratePanel()">➕ 생성</button>
     <button class="btn btn-outline btn-sm" onclick="openTopicManager()">📝 주제</button>
+    <button class="btn btn-outline btn-sm" onclick="openMasterData()">📋 마스터데이터</button>
     <button class="btn btn-outline btn-sm" id="themeToggle" onclick="toggleTheme()" title="라이트/다크 모드 전환">🌙</button>
   </div>
 </div>
@@ -254,6 +274,71 @@
       <div id="topicManager" class="topic-manage"></div>
     </div>
   </div>
+
+  <!-- 마스터데이터 편집 패널 -->
+  <div class="panel" id="masterDataPanel" style="display:none;">
+    <div class="panel-header">
+      <h2>📋 마스터데이터 — <span id="mdProductName" style="color:var(--primary-light)">컨설턴트홈페이지</span></h2>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span id="mdVersionInfo" style="font-size:12px; color:var(--text-dim);"></span>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('masterDataPanel').style.display='none'">닫기</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="md-tabs">
+        <button class="md-tab active" onclick="switchMdTab(0)">📦 상품 소개<span class="md-dot" id="mdDot0"></span></button>
+        <button class="md-tab" onclick="switchMdTab(1)">💡 설득 포인트<span class="md-dot" id="mdDot1"></span></button>
+        <button class="md-tab" onclick="switchMdTab(2)">📖 스토리·사례<span class="md-dot" id="mdDot2"></span></button>
+        <button class="md-tab" onclick="switchMdTab(3)">🎯 생성 가이드<span class="md-dot" id="mdDot3"></span></button>
+      </div>
+
+      <!-- 탭 0: 상품 소개 -->
+      <div id="mdSection0" class="md-section">
+        <div class="md-guide">
+          <strong>이 상품이 뭔지, 어떤 기능이 있는지</strong> 전부 여기에 붙여넣으세요.<br>
+          포함 내용: 서비스명, URL, 가격, 개발사, 문의처 / 핵심기능(기능명+설명) / 페이지별 기능(관리자·사용자) / 대상 고객 정보(연령, 경력, IT수준, 소비채널)
+        </div>
+        <textarea class="md-textarea" id="mdText0" placeholder="서비스명: 컨설턴트 전용 홈페이지 시스템&#10;샘플URL: https://consultant.re.kr/cn/insight&#10;가격: 월 100,000원&#10;&#10;[핵심기능]&#10;1. 세계 4대 AI 시스템 무료 사용 — ChatGPT, Gemini, Claude, Perplexity 통합 제공...&#10;&#10;[페이지별 기능]&#10;대시보드 — 토큰 현황, 고객문의 리스트...&#10;&#10;[대상 고객]&#10;보험설계사, 재무설계사(FP), 자산관리사..." oninput="updateCharCount(0)"></textarea>
+      </div>
+
+      <!-- 탭 1: 설득 포인트 -->
+      <div id="mdSection1" class="md-section" style="display:none;">
+        <div class="md-guide">
+          <strong>왜 좋은지, 어떤 문제를 해결하는지, 고객이 어떻게 느끼는지</strong> 붙여넣으세요.<br>
+          포함 내용: 도입 효과(전문성 강화, 효율성, 매출, 비용절감) / 해결하는 문제점 / 타겟 니즈 / 고객 반응(Before·After·심리)
+        </div>
+        <textarea class="md-textarea" id="mdText1" placeholder="[효과 — 전문성 강화]&#10;고급 홈페이지 이미지로 대형 회사급 브랜드 이미지 구축...&#10;&#10;[효과 — 업무 효율성]&#10;AI가 100% 풀버전 답변 제공으로 상담 준비시간 대폭 단축...&#10;&#10;[해결하는 문제점]&#10;1. 전문가로 대우받지 못함&#10;2. 반복 문의에 시간 소모...&#10;&#10;[고객 Before]&#10;보험인은 다 똑같아...&#10;&#10;[고객 After]&#10;이 컨설턴트는 AI가 있어? 대단하다..." oninput="updateCharCount(1)"></textarea>
+      </div>
+
+      <!-- 탭 2: 스토리·사례 -->
+      <div id="mdSection2" class="md-section" style="display:none;">
+        <div class="md-guide">
+          <strong>활용 시나리오, 성공 사례, 자주 묻는 질문</strong>을 붙여넣으세요. 블로그 스토리텔링에 활용됩니다.<br>
+          포함 내용: 활용 시나리오(구체적 상황 스토리) / 성공 사례(이름, 기능, 결과, 스토리) / FAQ(질문+답변)
+        </div>
+        <textarea class="md-textarea" id="mdText2" placeholder="[시나리오 1: 심야 문의에서 계약까지]&#10;박 컨설턴트의 홈페이지를 통해 가입한 고객이 밤 11시에...&#10;&#10;[성공사례]&#10;PSJ자산관리연구소 박 본부장: AI 1:1 상담, 전문가 네트워크 활용...&#10;&#10;[FAQ]&#10;Q. 개설까지 얼마나 걸리나요?&#10;A. 등록 후 3일이면 완전 런칭됩니다.&#10;&#10;Q. 기술 지식이 필요한가요?&#10;A. 전혀 필요 없습니다..." oninput="updateCharCount(2)"></textarea>
+      </div>
+
+      <!-- 탭 3: 생성 가이드 -->
+      <div id="mdSection3" class="md-section" style="display:none;">
+        <div class="md-guide">
+          <strong>AI가 콘텐츠 만들 때 지켜야 할 규칙, 브랜드 톤, 참고 스크립트</strong>를 붙여넣으세요.<br>
+          포함 내용: AI 금지 표현 / AI 강조 표현 / 브랜드 가이드(컬러, 폰트, 톤앤매너) / 해시태그·CTA / 참고 스크립트(쇼츠, 카드뉴스, 블로그, 홍보문구)
+        </div>
+        <textarea class="md-textarea" id="mdText3" placeholder="[금지 표현]&#10;1. 과장된 수익 주장 금지&#10;2. 특정 보험사명 언급 금지...&#10;&#10;[강조 표현]&#10;1. 전문성과 신뢰를 핵심 테마로&#10;2. AI는 조수, 대체가 아님...&#10;&#10;[브랜드 가이드]&#10;메인컬러: #1C294A&#10;톤앤매너: 따뜻하고 전문적이며 신뢰감 있는 톤&#10;&#10;[참고 쇼츠 스크립트]&#10;아직도 소개용 홈페이지로만 쓰시나요?..." oninput="updateCharCount(3)"></textarea>
+      </div>
+
+      <!-- 하단 버튼 & 정보 -->
+      <div class="md-footer">
+        <button class="btn btn-primary" onclick="saveMasterData()" id="mdSaveBtn">💾 저장</button>
+        <span class="char-count" id="mdCharCount">글자수: 0자</span>
+        <button class="btn btn-sm btn-outline" onclick="toggleMdHistory()" style="margin-left:auto;">📜 이전버전</button>
+      </div>
+
+      <!-- 이전 버전 -->
+      <div class="md-history" id="mdHistory" style="display:none;"></div>
+    </div>
+  </div>
 </div>
 
 <!-- 상세 모달 -->
@@ -336,6 +421,12 @@ async function selectProduct(productId) {
 
   // 주제 관리 패널이 열려있으면 갱신
   if (document.getElementById('topicPanel').style.display !== 'none') renderTopicManager();
+
+  // 마스터데이터 패널이 열려있으면 갱신
+  if (document.getElementById('masterDataPanel').style.display !== 'none') {
+    document.getElementById('mdProductName').textContent = MD_PRODUCT_NAMES[currentProductId] || currentProductId;
+    loadMasterData();
+  }
 }
 
 // ════════════════════════════════════════
@@ -1556,6 +1647,156 @@ async function deleteSelectedContents() {
     btn.textContent = `🗑️ ${ids.length}개 삭제`;
     btn.disabled = false;
   }
+}
+
+// ════════════════════════════════════════
+// 마스터데이터 관리
+// ════════════════════════════════════════
+let mdCurrentTab = 0;
+let mdLoaded = false;
+let mdHistoryData = [];
+
+const MD_PRODUCT_NAMES = {
+  conhome: '컨설턴트홈페이지', corphome: '기업홈페이지',
+  innercircle: '이너서클멤버십', jarvia: '자비아멤버십', taxnavi: '택스나비'
+};
+
+function openMasterData() {
+  const panel = document.getElementById('masterDataPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  if (panel.style.display === 'block') {
+    document.getElementById('mdProductName').textContent = MD_PRODUCT_NAMES[currentProductId] || currentProductId;
+    loadMasterData();
+  }
+}
+
+async function loadMasterData() {
+  try {
+    const r = await fetch(`${API_BASE}/masterDataLoad?productId=${currentProductId}`);
+    const json = await r.json();
+    if (json.success && json.data) {
+      document.getElementById('mdText0').value = json.data.section1 || '';
+      document.getElementById('mdText1').value = json.data.section2 || '';
+      document.getElementById('mdText2').value = json.data.section3 || '';
+      document.getElementById('mdText3').value = json.data.section4 || '';
+      document.getElementById('mdVersionInfo').textContent = `v${json.data.version || 1} · ${(json.data.updatedAt || '').replace('T',' ').substring(0,16)}`;
+      mdHistoryData = json.history || [];
+    } else {
+      document.getElementById('mdText0').value = '';
+      document.getElementById('mdText1').value = '';
+      document.getElementById('mdText2').value = '';
+      document.getElementById('mdText3').value = '';
+      document.getElementById('mdVersionInfo').textContent = '신규';
+      mdHistoryData = [];
+    }
+    mdLoaded = true;
+    updateCharCount(mdCurrentTab);
+    updateMdDots();
+  } catch (e) { console.error('마스터데이터 로드 실패:', e); }
+}
+
+async function saveMasterData() {
+  const btn = document.getElementById('mdSaveBtn');
+  btn.textContent = '⏳ 저장 중...';
+  btn.disabled = true;
+  try {
+    const body = {
+      productId: currentProductId,
+      section1: document.getElementById('mdText0').value,
+      section2: document.getElementById('mdText1').value,
+      section3: document.getElementById('mdText2').value,
+      section4: document.getElementById('mdText3').value,
+    };
+    const r = await fetch(`${API_BASE}/masterDataSave`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const json = await r.json();
+    if (json.success) {
+      document.getElementById('mdVersionInfo').textContent = `v${json.version} · ${new Date().toISOString().replace('T',' ').substring(0,16)}`;
+      btn.textContent = '✅ 저장 완료';
+      setTimeout(() => { btn.textContent = '💾 저장'; btn.disabled = false; }, 2000);
+      updateMdDots();
+      // 이전 버전 목록 갱신
+      loadMasterData();
+    } else {
+      alert('저장 실패: ' + (json.error || ''));
+      btn.textContent = '💾 저장';
+      btn.disabled = false;
+    }
+  } catch (e) {
+    alert('저장 실패: ' + e.message);
+    btn.textContent = '💾 저장';
+    btn.disabled = false;
+  }
+}
+
+function switchMdTab(idx) {
+  mdCurrentTab = idx;
+  document.querySelectorAll('.md-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.querySelectorAll('.md-section').forEach((s, i) => s.style.display = i === idx ? 'block' : 'none');
+  updateCharCount(idx);
+}
+
+function updateCharCount(idx) {
+  const textarea = document.getElementById(`mdText${idx}`);
+  if (textarea) {
+    document.getElementById('mdCharCount').textContent = `글자수: ${textarea.value.length.toLocaleString()}자`;
+  }
+}
+
+function updateMdDots() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById(`mdDot${i}`);
+    const val = document.getElementById(`mdText${i}`).value.trim();
+    dot.className = 'md-dot ' + (val.length > 0 ? 'filled' : 'empty');
+  }
+}
+
+function toggleMdHistory() {
+  const el = document.getElementById('mdHistory');
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+    renderMdHistory();
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function renderMdHistory() {
+  const el = document.getElementById('mdHistory');
+  if (!mdHistoryData || mdHistoryData.length === 0) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text-dim);padding:8px;">이전 버전이 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = mdHistoryData.map(h => `
+    <div class="md-hist-item">
+      <span class="ver">${h.version}</span>
+      <span class="date">${(h.savedAt || '').replace('T',' ').substring(0,16)}</span>
+      <button class="btn btn-sm btn-outline" onclick="restoreMasterData('${h.version}')">복원</button>
+    </div>
+  `).join('');
+}
+
+async function restoreMasterData(version) {
+  if (!confirm(`${version} 버전을 불러올까요? (현재 내용은 저장 시 백업됩니다)`)) return;
+  try {
+    const r = await fetch(`${API_BASE}/masterDataRestore`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId: currentProductId, restoreVersion: version })
+    });
+    const json = await r.json();
+    if (json.success && json.data) {
+      document.getElementById('mdText0').value = json.data.section1 || '';
+      document.getElementById('mdText1').value = json.data.section2 || '';
+      document.getElementById('mdText2').value = json.data.section3 || '';
+      document.getElementById('mdText3').value = json.data.section4 || '';
+      updateCharCount(mdCurrentTab);
+      updateMdDots();
+      alert(`${version} 복원 완료. [저장] 버튼을 눌러야 반영됩니다.`);
+    } else {
+      alert('복원 실패: ' + (json.error || ''));
+    }
+  } catch (e) { alert('복원 실패: ' + e.message); }
 }
 
 // ── 초기화 ──
